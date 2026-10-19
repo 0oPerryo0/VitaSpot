@@ -1,0 +1,71 @@
+[package]
+name = "vam-backend"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+description = "VitaSpot backend: librespot based Spotify playback + metadata for the PS Vita"
+license = "MIT"
+
+[lib]
+name = "vam_backend"
+crate-type = ["staticlib"]
+
+[dependencies]
+librespot-core = { version = "0.8.0", default-features = false, features = ["rustls-tls-webpki-roots"] }
+librespot-connect = { version = "0.8.0", default-features = false, features = ["rustls-tls-webpki-roots"] }
+librespot-discovery = { version = "0.8.0", default-features = false, features = ["with-libmdns", "rustls-tls-webpki-roots"] }
+librespot-metadata = { version = "0.8.0", default-features = false, features = ["rustls-tls-webpki-roots"] }
+librespot-playback = { version = "0.8.0", default-features = false, features = ["rustls-tls-webpki-roots"] }
+librespot-protocol = { version = "0.8.0", default-features = false }
+
+bytes = "1"
+futures-util = "0.3"
+http = "1"
+http-body-util = "0.1"
+hyper = { version = "1", default-features = false }
+log = "0.4"
+protobuf = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha1 = "0.10"
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+
+# Host builds use librespot's normal rodio backend. The Vita uses the
+# sceAudioOut sink in src/platform/vita.rs instead.
+[target.'cfg(not(target_os = "vita"))'.dependencies]
+librespot-playback = { version = "0.8.0", default-features = false, features = ["rustls-tls-webpki-roots", "rodio-backend"] }
+librespot-oauth = { version = "0.8.0", default-features = false, features = ["rustls-tls-webpki-roots"] }
+env_logger = "0.11"
+
+[patch.crates-io]
+librespot-audio = { path = "vendor/librespot-audio" }
+librespot-core = { path = "vendor/librespot-core" }
+librespot-connect = { path = "vendor/librespot-connect" }
+librespot-discovery = { path = "vendor/librespot-discovery" }
+librespot-oauth = { path = "vendor/librespot-oauth" }
+librespot-playback = { path = "vendor/librespot-playback" }
+rustix = { path = "vendor/rustix" }
+if-addrs = { path = "vendor/if-addrs" }
+tempfile = { path = "vendor/tempfile" }
+ring = { path = "vendor/ring" }
+
+[profile.release]
+debug = false
+strip = "debuginfo"
+
+[profile.release.package."*"]
+opt-level = 2
+
+[profile.dev]
+# librespot is unusably slow in an unoptimised build; optimise dependencies
+# even for debug runs against the desktop UI.
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[[bin]]
+name = "vam-login"
+path = "tools/vam-login.rs"
+test = false

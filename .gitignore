@@ -1,0 +1,47 @@
+# Build output
+build/
+build-*/
+*.vpk
+*.velf
+*.self
+eboot.bin
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+*.dll
+*.pdb
+# ...except ring's pregenerated assembly objects, which are crate source
+!backend/librespot-vam/vendor/ring/pregenerated/**
+
+# Local toolchain (VitaSDK, Rust, w64devkit, scratch builds)
+.toolchain/
+
+# Rust (backend/librespot-vam/.gitignore covers its own target/)
+target/
+
+# Spotify login and app data from test runs - never commit these
+credentials.json
+**/data/VitaSpot/
+**/data/VitaAM/
+vam.log
+*.log
+recent_searches.txt
+
+# Screenshots and dumps from devscript runs
+*.bmp
+search_dump.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

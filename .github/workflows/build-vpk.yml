@@ -47,9 +47,12 @@ jobs:
           cd /tmp/vdpm
           ./bootstrap-vitasdk.sh
           export PATH="$VITASDK/bin:$PATH"
-          # Everything CMakeLists.txt links: SDL2, SDL2_ttf, SDL2_image and
-          # their image/font dependencies.
-          ./install-all.sh
+          # Use the vdpm the SDK installs: the repo's install-all.sh calls a
+          # legacy wrapper that expects $VITASDK/bin/pacman, which the
+          # package-based SDK doesn't have. These are the libraries
+          # CMakeLists.txt links; pacman pulls in their dependencies.
+          vdpm install sdl2 sdl2_ttf sdl2_image freetype harfbuzz libpng \
+            libjpeg-turbo libwebp zlib bzip2
 
       - name: Add VitaSDK to PATH
         run: echo "$VITASDK/bin" >> "$GITHUB_PATH"

@@ -51,7 +51,8 @@ jobs:
           # legacy wrapper that expects $VITASDK/bin/pacman, which the
           # package-based SDK doesn't have. These are the libraries
           # CMakeLists.txt links; pacman pulls in their dependencies.
-          vdpm install sdl2 sdl2_ttf sdl2_image freetype harfbuzz libpng \
+          # VDPM_NONINTERACTIVE=1 passes --noconfirm (no TTY on CI).
+          VDPM_NONINTERACTIVE=1 vdpm install sdl2 sdl2_ttf sdl2_image freetype harfbuzz libpng \
             libjpeg-turbo libwebp zlib bzip2
 
       - name: Add VitaSDK to PATH

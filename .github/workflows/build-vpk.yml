@@ -1,0 +1,100 @@
+name: Build VPK
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VITASDK: /home/runner/vitasdk
+  # Pinned nightly the backend is known to build with (Vita std is built from
+  # source with -Z build-std, which needs rust-src).
+  VAM_RUST_TOOLCHAIN: nightly-2026-10-18
+
+jobs:
+  vpk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake make git curl bzip2 xz-utils python3
+
+      # VitaSDK + vdpm packages take several minutes to install; refresh the
+      # cache weekly so new SDK fixes still come in.
+      - name: Cache key for VitaSDK
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache VitaSDK
+        id: vitasdk-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VITASDK }}
+          key: vitasdk-${{ runner.os }}-${{ steps.week.outputs.week }}
+
+      - name: Install VitaSDK
+        if: steps.vitasdk-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/vitasdk/vdpm /tmp/vdpm
+          cd /tmp/vdpm
+          ./bootstrap-vitasdk.sh
+          export PATH="$VITASDK/bin:$PATH"
+          # Everything CMakeLists.txt links: SDL2, SDL2_ttf, SDL2_image and
+          # their image/font dependencies.
+          ./install-all.sh
+
+      - name: Add VitaSDK to PATH
+        run: echo "$VITASDK/bin" >> "$GITHUB_PATH"
+
+      - name: Install Rust ${{ env.VAM_RUST_TOOLCHAIN }}
+        run: rustup toolchain install "$VAM_RUST_TOOLCHAIN" --profile minimal --component rust-src
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/librespot-vam/target
+          key: cargo-vita-${{ env.VAM_RUST_TOOLCHAIN }}-${{ hashFiles('backend/librespot-vam/Cargo.lock', 'backend/librespot-vam/vendor/**/Cargo.toml') }}
+          restore-keys: cargo-vita-${{ env.VAM_RUST_TOOLCHAIN }}-
+
+      - name: Build backend (Rust)
+        working-directory: backend/librespot-vam
+        run: bash scripts/build-vita.sh
+
+      - name: Build VPK
+        working-directory: backend/librespot-vam
+        run: bash scripts/build-vpk.sh
+
+      - name: Upload VPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VitaSpot-vpk
+          path: build-vita/VitaSpot.vpk
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: vpk
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: VitaSpot-vpk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: VitaSpot.vpk
+          generate_release_notes: true

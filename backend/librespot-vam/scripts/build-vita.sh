@@ -4,7 +4,8 @@
 # Requirements:
 #   * VitaSDK installed, VITASDK pointing at it
 #   * Rust nightly with the rust-src component (rustup toolchain install
-#     nightly --component rust-src)
+#     nightly --component rust-src). Set VAM_RUST_TOOLCHAIN to use another
+#     toolchain, e.g. a pinned nightly-YYYY-MM-DD (CI does this).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -14,7 +15,7 @@ export PATH="$VITASDK/bin:$PATH"
 export CC_armv7_sony_vita_newlibeabihf="${CC_armv7_sony_vita_newlibeabihf:-$VITASDK/bin/arm-vita-eabi-gcc}"
 export AR_armv7_sony_vita_newlibeabihf="${AR_armv7_sony_vita_newlibeabihf:-$VITASDK/bin/arm-vita-eabi-ar}"
 
-cargo +nightly build --release --lib \
+cargo +"${VAM_RUST_TOOLCHAIN:-nightly}" build --release --lib \
     --target armv7-sony-vita-newlibeabihf \
     -Z build-std=std,panic_abort
 

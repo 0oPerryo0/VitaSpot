@@ -1,0 +1,2 @@
+# Shell scripts run on Linux CI: keep LF even with core.autocrlf=true.
+*.sh text eol=lf

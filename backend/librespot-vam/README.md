@@ -277,7 +277,7 @@ librespot-discovery, librespot-oauth, librespot-playback, rustix, if-addrs, temp
   podcast UI yet.
 * `vam_login_url` / `vam_login_code` are left empty (no OAuth web flow).
 * The `VAM_EV_*` event order matches the mock; minor differences are noted in
-  the hand-off report (none affect the header contract).
+  [`REPORT.md`](REPORT.md) (none affect the header contract).
 
 ## Differences from the mock backend
 

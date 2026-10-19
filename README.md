@@ -220,7 +220,6 @@ uploads)`).
   fixes, such as IPv4-only discovery, Vita paths in temp files and faster track
   loads. Each patch is explained in
   [backend/librespot-vam/vendor/README.md](backend/librespot-vam/vendor/README.md).
-- `docs/BACKEND_HANDOFF.md` is the original brief the backend was built from.
 
 ## Credits and licences
 

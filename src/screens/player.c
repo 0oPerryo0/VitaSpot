@@ -352,11 +352,23 @@ void screen_now_playing(void)
     }
 
     /* Track info. With lyrics showing, the cover moves next to the title,
-       spanning the title's cap height down to the artist's baseline. */
+       centred on the text from the title's top to the artist's bottom
+       (text_vmetrics). Text with CJK sits a few px lower than Latin, so that
+       span is measured, once per title and artist. */
     float x0 = 480, w = SCREEN_W - x0 - 56;
     float tx = x0;
     if (show_lyrics) {
-        draw_cover(tr->image_url, rect(x0, oy + 157, 60, 60), 4, tr->kind, tr->title);
+        static char measured[2 * VAM_TEXT_MAX + 2];
+        static float cover_mid = 186.5f; /* Latin, until the fonts can measure */
+        char key[sizeof(measured)];
+        snprintf(key, sizeof(key), "%s\n%s", tr->title, tr->subtitle);
+        float t_top, t_bottom, a_top, a_bottom;
+        if (strcmp(measured, key) != 0 && text_vmetrics(tr->title, FS_XXL, FW_BOLD, &t_top, &t_bottom) &&
+            text_vmetrics(tr->subtitle, FS_L, FW_REGULAR, &a_top, &a_bottom)) {
+            cover_mid = (150 + t_top + 196 + a_bottom) / 2;
+            memcpy(measured, key, sizeof(measured));
+        }
+        draw_cover(tr->image_url, rect(x0, oy + cover_mid - 30, 60, 60), 4, tr->kind, tr->title);
         tx = x0 + 74;
     }
     float tw = w - 50 - (tx - x0);

@@ -1,6 +1,7 @@
 #include "text.h"
 
 #include <SDL_ttf.h>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -614,6 +615,41 @@ int text_measure(const char *s, int size, font_weight w)
 }
 
 bool text_fonts_ready(void) { return g_ready && g_reopened; }
+
+bool text_vmetrics(const char *s, int size, font_weight w, float *top, float *bottom)
+{
+    if (!g_ready || !s || !*s)
+        return false;
+    run runs[MAX_RUNS];
+    g_fb_deferred = false;
+    int n = split_runs(s, size_index(size), w, runs);
+    if (g_fb_deferred)
+        return false;
+    /* render() puts the baseline at the largest ascent of the runs' fonts. */
+    int asc = 0, hi = INT_MIN, lo = 0;
+    for (int i = 0; i < n; i++) {
+        if (!runs[i].f)
+            continue;
+        if (TTF_FontAscent(runs[i].f) > asc)
+            asc = TTF_FontAscent(runs[i].f);
+        const char *p = runs[i].start, *end = runs[i].start + runs[i].len;
+        while (p < end) {
+            uint32_t cp = utf8_next(&p);
+            int miny, maxy;
+            if (cp == ' ' || TTF_GlyphMetrics32(runs[i].f, cp, NULL, NULL, &miny, &maxy, NULL) != 0)
+                continue;
+            if (maxy > hi)
+                hi = maxy;
+            if (cp >= 0x2E80 && miny < lo)
+                lo = miny;
+        }
+    }
+    if (hi == INT_MIN)
+        return false;
+    *top = (float)(asc - hi);
+    *bottom = (float)(asc - lo);
+    return true;
+}
 
 int text_width(const char *s, int size, font_weight w, float max_w)
 {

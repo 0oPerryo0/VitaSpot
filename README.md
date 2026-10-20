@@ -22,6 +22,9 @@ own branding. **Spotify Premium is required.**
 
 - **Plays on the Vita**: 320 kbps Ogg Vorbis, gapless, seeking from the
   timeline (touch or buttons), volume, shuffle, repeat, queue.
+- **Lyrics**: the mic button in Now Playing swaps the artwork for the song's
+  lyrics. Synced lyrics highlight the current line level with the timeline;
+  tap a line to jump to it. The button is greyed out for songs without lyrics.
 - **Spotify Connect**: the Vita appears in the device list of Spotify on your
   phone or PC; pick it there to sign in or to hand playback over.
 - **Browse**: Home (recently played, your playlists, saved albums, your
@@ -35,7 +38,7 @@ own branding. **Spotify Premium is required.**
   playing, and the screen dims and turns off after a while without input.
   The combo and both timers are set in Settings.
 - **CJK text**: Chinese, Japanese and Korean titles render through a bundled
-  Noto Sans CJK fallback font.
+  Noto Sans CJK fallback font, on the same baseline as Latin text.
 - **Sized for the Vita**: text and touch targets are scaled for the 5-inch
   screen. Buttons have at least a 48 px touch area, and sliders can be grabbed
   well above or below their thin bar.
@@ -68,7 +71,7 @@ screen.
 
 | Input | Action |
 |---|---|
-| Front touch | Tap, drag or flick to scroll, long-press for the item menu, drag the timeline to seek |
+| Front touch | Tap, drag or flick to scroll, long-press for the item menu, drag the timeline to seek, tap a lyric line to jump to it |
 | D-pad | Move focus |
 | Left stick | Scroll |
 | Cross / Circle | Confirm / back (follows the system's Enter-button setting) |
@@ -110,7 +113,7 @@ SDL2 frontend (C11, src/)  <-- include/vam_backend.h -->  backend (Rust, backend
 - **Backend** (`backend/librespot-vam/`): a Rust static library on librespot.
   It handles sign-in, Spotify Connect, audio decoding and output, and builds
   the pages from Spotify's internal endpoints (extended metadata, collection,
-  playlist v2, GraphQL search). The public Web API is not used, because it
+  playlist v2, GraphQL search, color-lyrics). The public Web API is not used, because it
   rate-limits librespot's shared client id. Details are in
   [backend/librespot-vam/README.md](backend/librespot-vam/README.md).
 - **Mock backend** (`backend/mock/`): a fake catalogue for working on the UI
@@ -200,10 +203,12 @@ per-user folder, or the folder named by `VAM_DATA_DIR`.
 | `cache/audio/`, `cache/img/` | Audio (200 MB cap) and image (30 MB cap) caches |
 | `fonts/` | Optional: fonts here override the bundled ones |
 | `recent_searches.txt` | Recent searches |
+| `settings.txt` | Settings: screen-off combo and timers, audio quality, lyrics on or off |
 | `vam.log` | Backend log, rewritten on each start (Vita) |
 
 `vam.log` is the first place to look. It records sign-in, track loads,
-seeks, audio underruns, failed Spotify requests and UI frames slower than
+seeks (with the time the decoder seek and the read-ahead wait took), audio
+underruns, failed Spotify requests and UI frames slower than
 45 ms (`slow frame ... ms (events, update+draw, present; text renders, image
 uploads)`).
 
@@ -213,6 +218,7 @@ uploads)`).
 | "Search isn't working right now." | Spotify retired the search query hash. `vam.log` shows `PersistedQueryNotFound`; update `SEARCH_HASH` in `backend/librespot-vam/src/search.rs` from a `searchDesktop` request on open.spotify.com |
 | "Another Spotify device is controlling playback." | Another device didn't hand over in time; start playback on the Vita again or pick the Vita from that device |
 | Audio crackles right after a track starts | Logged as `audio underrun`; the decoder is still filling its buffer |
+| The lyrics button stays grey | Spotify has no lyrics for the song (`NotFound`), or the request failed; `vam.log` shows either as `spclient /color-lyrics/v2/track/<id> failed: ...` |
 
 ## Development notes
 

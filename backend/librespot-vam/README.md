@@ -15,7 +15,7 @@ The frontend and the header are **not** modified by this crate.
 | Host build (Windows/MinGW, Linux) | **verified** |
 | Host UI integration (desktop SDL2 app, logged-out/zeroconf state) | **verified** |
 | Host Zeroconf advertising (mDNS query from another process) | **verified** |
-| Contract test against the mock backend | **verified** (499 checks) |
+| Contract test against the mock backend | **verified** (560 checks) |
 | Contract test against this backend, logged out | **verified** (27 checks) |
 | Contract test against this backend, logged in / playback | **unverified** (needs a Spotify Premium account) |
 | PS Vita cross-compile + VPK link | **verified** (`armv7-sony-vita-newlibeabihf`, `-Z build-std`) |
@@ -38,6 +38,7 @@ backend/librespot-vam/
   src/internal.rs       Spotify internal endpoints (metadata, collection, playlists)
   src/webapi.rs         session holder + image CDN downloads
   src/search.rs         search via Spotify's GraphQL API (pathfinder)
+  src/lyrics.rs         lyrics for vam_request_lyrics (color-lyrics endpoint)
   src/pages.rs          vam:home / library / search / queue and detail pages
   src/items.rs          Liked Songs entry + small formatting helpers
   src/saved.rs          library snapshot cache + like/save/follow
@@ -71,12 +72,16 @@ backend/librespot-vam/
   API rate-limits librespot's shared desktop client id (every call returned
   HTTP 429), so nothing uses it. Search goes through the GraphQL API the
   official clients use (`src/search.rs`, persisted query `searchDesktop`).
+  Lyrics come from `/color-lyrics/v2/track/<id>` (`src/lyrics.rs`), parsed
+  loosely into one text buffer with per-line start times and capped at 300
+  lines / 16 KB.
 * Saved state comes from a library snapshot (collection sets + rootlist) that
   is reused for 2 minutes and updated locally on like/save/follow.
 * Audio: on the host librespot's rodio/cpal backend is used; on the Vita a
   custom librespot `Sink` writes S16 stereo into a 1-second ring buffer that a
   dedicated thread feeds to `sceAudioOutOutput()` on a BGM port (1024-frame
-  grains, 44100 Hz).
+  grains, 44100 Hz). A seek empties the ring (`Sink::flush`, a vendored
+  addition), so the new position is heard without a second of old audio.
 * Suspend/resume: a >30 s gap between engine ticks (or an invalidated session)
   triggers a reconnect with the stored credentials; playback comes back
   paused.
@@ -241,7 +246,7 @@ session and returns to `LOGGED_OUT`, with Zeroconf advertising again.
 
 `backend/tests/contract_test.c` is a headless driver for the whole C API. See
 [`backend/tests/README.md`](../tests/README.md). It runs against the mock
-(499 assertions, fully green) and against this backend (auth/event/id/cancel
+(560 assertions, fully green) and against this backend (auth/event/id/cancel
 invariants while logged out; the playback part needs credentials).
 
 ## Vendored librespot fixes
@@ -273,6 +278,9 @@ librespot-discovery, librespot-oauth, librespot-playback, rustix, if-addrs, temp
 * **Memory/CPU**: the release VPK's `eboot.bin` is ~11 MB, much of it Rust
   std/librespot code. Resident memory is expected to be dominated by decoding
   buffers and TLS state, but it was not measured on a Vita.
+* **Lyrics** use the same color-lyrics request the official clients make, but
+  have not been fetched from Spotify's servers yet; if the endpoint wants
+  headers librespot doesn't send, every song shows the grey lyrics button.
 * Podcasts (`spotify:show:`) return `VAM_ERR_UNSUPPORTED`; the frontend has no
   podcast UI yet.
 * `vam_login_url` / `vam_login_code` are left empty (no OAuth web flow).

@@ -329,7 +329,7 @@ static int line_at_y(float y, bool exact)
 /* Drawing                                                                   */
 /* ------------------------------------------------------------------------ */
 
-void lyrics_draw(rectf area, float alpha)
+void lyrics_draw(rectf area, float focus_y, float alpha)
 {
     if (L.state != LY_READY)
         return;
@@ -348,9 +348,11 @@ void lyrics_draw(rectf area, float alpha)
         update_cur(app_position_ms());
 
     scroller *s = &L.scroll;
-    float anchor = area.h * 0.33f;
-    /* Synced: room below the last line so it can reach the anchor. */
-    float content = L.synced ? L.content_h + area.h - anchor : L.content_h + 24;
+    /* Synced: the current line centres on focus_y. Room above the first
+       line and below the last lets every line get there. */
+    float anchor = L.synced ? focus_y - area.y : 0;
+    float top = L.synced ? fmaxf(0, anchor - L.lines[0].h / 2) : 0;
+    float content = L.synced ? top + L.content_h + area.h - anchor : L.content_h + 24;
     float prev = s->pos;
     bool had_target = s->has_target;
 
@@ -363,7 +365,7 @@ void lyrics_draw(rectf area, float alpha)
     if (L.synced) {
         float target = 0;
         if (L.cur >= 0)
-            target = L.lines[L.cur].y + L.lines[L.cur].h / 2 - anchor;
+            target = top + L.lines[L.cur].y + L.lines[L.cur].h / 2 - anchor;
         target = target < 0 ? 0 : target > s->max ? s->max : target;
         if (L.need_jump) {
             s->pos = target;
@@ -380,7 +382,7 @@ void lyrics_draw(rectf area, float alpha)
     /* Tap a line to play from it. */
     ui_res res = ui_item(ui_id("np.lyrics"), area, UI_F_NOFOCUS);
     if (res.clicked && L.synced) {
-        int i = line_at_y(ui_pointer_y() - area.y + s->pos, true);
+        int i = line_at_y(ui_pointer_y() - area.y + s->pos - top, true);
         if (i >= 0 && L.lines[i].nrows > 0) {
             vam_seek(L.lines[i].start);
             L.cur = i;
@@ -389,8 +391,9 @@ void lyrics_draw(rectf area, float alpha)
     }
 
     float lh = (float)text_line_height(LY_SIZE);
-    float bottom = s->pos + area.h;
-    int i = line_at_y(s->pos, false);
+    /* Visible range in line coordinates. */
+    float view_top = s->pos - top, bottom = view_top + area.h;
+    int i = line_at_y(view_top, false);
     if (i < 0)
         i = 0;
     int ahead = 0;
@@ -409,13 +412,13 @@ void lyrics_draw(rectf area, float alpha)
                 text_width(L.rows + L.row_off[ln->row0 + r], LY_SIZE, LY_WEIGHT, 0);
             continue;
         }
-        if (ln->y + ln->h < s->pos)
+        if (ln->y + ln->h < view_top)
             continue;
         float a = 0.9f;
         if (L.synced)
             a = i == L.cur ? 1.0f : i < L.cur ? 0.6f : 0.38f;
         for (int r = 0; r < ln->nrows; r++) {
-            float y = area.y + ln->y - s->pos + r * lh;
+            float y = area.y + ln->y - view_top + r * lh;
             float mid = y + lh / 2;
             float edge = fminf(mid - area.y + fade_top, area.y + area.h - mid + fade_bottom) / EDGE_FADE;
             edge = edge < 0 ? 0 : edge > 1 ? 1 : edge;

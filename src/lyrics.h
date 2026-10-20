@@ -20,7 +20,8 @@ void lyrics_reset(void);
 /* The playing track's lyrics have arrived. False while loading and for
    tracks without lyrics. */
 bool lyrics_available(void);
-/* Draws the lyrics column into area; alpha fades it in. */
-void lyrics_draw(rectf area, float alpha);
+/* Draws the lyrics column into area; synced lyrics keep the current line
+   centred on screen row focus_y. alpha fades it in. */
+void lyrics_draw(rectf area, float focus_y, float alpha);
 
 #endif

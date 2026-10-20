@@ -344,7 +344,8 @@ void screen_now_playing(void)
     lyrics_fade = show_lyrics ? fminf(1, lyrics_fade + A.dt / ANIM_MED) : 0;
     rectf art = rect(64, oy + 82, 360, 360);
     if (show_lyrics) {
-        lyrics_draw(art, lyrics_fade);
+        /* The current line sits level with the progress bar. */
+        lyrics_draw(art, oy + 262 + 2.5f, lyrics_fade);
     } else {
         gfx_shadow(art, 8, 22, 200);
         draw_cover(tr->image_url, art, 8, tr->kind, tr->title);

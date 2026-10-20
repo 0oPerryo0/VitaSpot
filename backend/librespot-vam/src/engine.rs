@@ -91,6 +91,10 @@ const PLAYER_TICK: Duration = Duration::from_millis(100);
 const VOLUME_TICK: Duration = Duration::from_millis(50);
 const SLOW_TICK: Duration = Duration::from_secs(1);
 const SUSPEND_GAP_MS: u64 = 30_000;
+// Switching repeat takes two Spirc calls (clear one flag, set the other) and
+// each reports its own state, so the button would blink through the
+// intermediate modes. Show the requested mode for this long instead.
+const REPEAT_SETTLE_MS: u64 = 1000;
 
 pub async fn run(shared: Arc<Shared>) {
     let backend = shared.backend.clone();
@@ -132,6 +136,8 @@ struct Engine {
     last_snapshot: ConnectSnapshot,
     last_credentials_marker: Option<String>,
     pending_volume: Option<u16>,
+    /// Requested repeat mode and the time (ms) until which it overrides Spirc.
+    pending_repeat: Option<(i32, u64)>,
     reconnect_at: Option<tokio::time::Instant>,
     discovery_retry_at: Option<tokio::time::Instant>,
     last_wifi: bool,
@@ -184,6 +190,7 @@ impl Engine {
             last_snapshot: ConnectSnapshot::default(),
             last_credentials_marker: None,
             pending_volume: None,
+            pending_repeat: None,
             reconnect_at: None,
             discovery_retry_at: None,
             last_wifi: wifi,
@@ -300,7 +307,11 @@ impl Engine {
                     true
                 }
                 Tick::Fast => {
-                    self.apply_snapshot(false);
+                    let settled = matches!(self.pending_repeat, Some((_, until)) if now_ms_inner() >= until);
+                    if settled {
+                        self.pending_repeat = None;
+                    }
+                    self.apply_snapshot(settled);
                     true
                 }
                 Tick::Slow => {
@@ -387,6 +398,7 @@ impl Engine {
                 self.spawn_simple_spirc(false, move |spirc| spirc.shuffle(enabled));
             }
             Command::SetRepeat(mode) => {
+                self.pending_repeat = Some((mode, now_ms_inner() + REPEAT_SETTLE_MS));
                 self.backend.set_player(|state| {
                     state.repeat = mode;
                     state.seq = state.seq.wrapping_add(1);
@@ -746,13 +758,7 @@ impl Engine {
                 });
             }
             PlayerEvent::RepeatChanged { context, track } => {
-                let mode = if track {
-                    VAM_REPEAT_TRACK
-                } else if context {
-                    VAM_REPEAT_CONTEXT
-                } else {
-                    VAM_REPEAT_OFF
-                };
+                let mode = self.shown_repeat(repeat_mode(context, track));
                 self.backend.set_player(move |state| {
                     state.repeat = mode;
                     state.seq = state.seq.wrapping_add(1);
@@ -799,6 +805,14 @@ impl Engine {
         self.update_from_snapshot(snapshot);
     }
 
+    /// The repeat mode to show: a just-requested one while Spirc settles.
+    fn shown_repeat(&self, reported: i32) -> i32 {
+        match self.pending_repeat {
+            Some((mode, until)) if now_ms_inner() < until => mode,
+            _ => reported,
+        }
+    }
+
     fn update_from_snapshot(&self, snapshot: ConnectSnapshot) {
         let now = now_ms_inner();
         let current = self.backend.player_snapshot();
@@ -829,13 +843,7 @@ impl Engine {
 
         // Options.
         next.shuffle = snapshot.shuffle as u8;
-        next.repeat = if snapshot.repeat_track {
-            VAM_REPEAT_TRACK
-        } else if snapshot.repeat_context {
-            VAM_REPEAT_CONTEXT
-        } else {
-            VAM_REPEAT_OFF
-        };
+        next.repeat = self.shown_repeat(repeat_mode(snapshot.repeat_context, snapshot.repeat_track));
         next.is_active_device = snapshot.is_active as u8;
         if snapshot.volume > 0 {
             next.volume = snapshot.volume;
@@ -1521,4 +1529,14 @@ fn cstr_lossy(buffer: &[u8]) -> String {
 
 fn marker(credentials: &Credentials) -> String {
     sha1_hex(&credentials.auth_data)
+}
+
+fn repeat_mode(context: bool, track: bool) -> i32 {
+    if track {
+        VAM_REPEAT_TRACK
+    } else if context {
+        VAM_REPEAT_CONTEXT
+    } else {
+        VAM_REPEAT_OFF
+    }
 }

@@ -1,8 +1,8 @@
 //! Image download + LRU disk cache for `vam_request_image`.
 
 use std::fs;
-use std::path::PathBuf;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use crate::shared::Shared;
 use crate::util::{now_ms_inner, sha1_hex};
@@ -12,40 +12,49 @@ use crate::webapi::ApiError;
 pub struct ByteCache {
     dir: PathBuf,
     max_bytes: u64,
-    index: Mutex<Vec<(String, u64, u64)>>, // (key, size, last_used_ms)
+    index: Arc<Mutex<Vec<(String, u64, u64)>>>, // (key, size, last_used_ms)
 }
 
+type Index = Mutex<Vec<(String, u64, u64)>>;
+
 impl ByteCache {
+    /// Lists the existing files on a background thread: on the Vita that
+    /// takes about 25 ms per file (12 s for a full cache), and sign-in used
+    /// to wait for it. Until it finishes, `get` still reads files directly
+    /// and `put` only undercounts, so pruning just starts a little late.
     pub fn new(dir: String, max_bytes: u64) -> Self {
         let dir = PathBuf::from(dir);
         let _ = fs::create_dir_all(&dir);
-        let mut entries = Vec::new();
-        if let Ok(read) = fs::read_dir(&dir) {
-            for entry in read.flatten() {
-                if let Ok(meta) = entry.metadata() {
-                    if meta.is_file() {
-                        let name = entry.file_name().to_string_lossy().to_string();
-                        let key = name.trim_end_matches(".img").to_string();
-                        let used = meta
-                            .modified()
-                            .ok()
-                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                            .map(|d| d.as_millis() as u64)
-                            .unwrap_or(0);
-                        entries.push((key, meta.len(), used));
+        let index: Arc<Index> = Arc::new(Mutex::new(Vec::new()));
+        let (scan_dir, scan_index) = (dir.clone(), index.clone());
+        let spawned = std::thread::Builder::new()
+            .name("img-cache-index".into())
+            .stack_size(128 * 1024)
+            .spawn(move || {
+                crate::platform::lower_current_thread_priority();
+                let scanned = scan(&scan_dir);
+                if let Ok(mut index) = scan_index.lock() {
+                    // Files touched meanwhile are already listed, fresher.
+                    for entry in scanned {
+                        if !index.iter().any(|(k, _, _)| *k == entry.0) {
+                            index.push(entry);
+                        }
                     }
                 }
-            }
+                prune(&scan_dir, max_bytes, &scan_index);
+            });
+        if spawned.is_err() {
+            *index.lock().unwrap_or_else(|e| e.into_inner()) = scan(&dir);
         }
         ByteCache {
             dir,
             max_bytes,
-            index: Mutex::new(entries),
+            index,
         }
     }
 
     fn path_for(&self, key: &str) -> PathBuf {
-        self.dir.join(format!("{key}.img"))
+        path_in(&self.dir, key)
     }
 
     pub fn get(&self, key: &str) -> Option<Vec<u8>> {
@@ -82,29 +91,57 @@ impl ByteCache {
             }
         }
         let _ = total;
-        self.prune();
+        prune(&self.dir, self.max_bytes, &self.index);
     }
+}
 
-    fn prune(&self) {
-        let Ok(mut index) = self.index.lock() else {
-            return;
-        };
-        let mut total: u64 = index.iter().map(|(_, size, _)| *size).sum();
-        if total <= self.max_bytes {
-            return;
-        }
-        index.sort_by_key(|(_, _, used)| *used);
-        let mut remaining = Vec::new();
-        for entry in index.drain(..) {
-            if total > self.max_bytes {
-                total = total.saturating_sub(entry.1);
-                let _ = fs::remove_file(self.path_for(&entry.0));
-            } else {
-                remaining.push(entry);
+fn path_in(dir: &Path, key: &str) -> PathBuf {
+    dir.join(format!("{key}.img"))
+}
+
+/// (key, size, last_used_ms) of every cached file in dir.
+fn scan(dir: &Path) -> Vec<(String, u64, u64)> {
+    let mut entries = Vec::new();
+    if let Ok(read) = fs::read_dir(dir) {
+        for entry in read.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if meta.is_file() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let key = name.trim_end_matches(".img").to_string();
+                    let used = meta
+                        .modified()
+                        .ok()
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_millis() as u64)
+                        .unwrap_or(0);
+                    entries.push((key, meta.len(), used));
+                }
             }
         }
-        *index = remaining;
     }
+    entries
+}
+
+/// Delete the least recently used files until the cache fits max_bytes.
+fn prune(dir: &Path, max_bytes: u64, index: &Index) {
+    let Ok(mut index) = index.lock() else {
+        return;
+    };
+    let mut total: u64 = index.iter().map(|(_, size, _)| *size).sum();
+    if total <= max_bytes {
+        return;
+    }
+    index.sort_by_key(|(_, _, used)| *used);
+    let mut remaining = Vec::new();
+    for entry in index.drain(..) {
+        if total > max_bytes {
+            total = total.saturating_sub(entry.1);
+            let _ = fs::remove_file(path_in(dir, &entry.0));
+        } else {
+            remaining.push(entry);
+        }
+    }
+    *index = remaining;
 }
 
 /// Fetch (or reuse) the encoded JPEG/PNG bytes for an `i.scdn.co` URL.

@@ -347,8 +347,11 @@ typedef struct run { const char *start; int len; TTF_Font *f; } run;
 static int split_runs(const char *s, int si, int weight, run *runs)
 {
     TTF_Font *prim = font(weight ? FACE_BOLD : FACE_REG, si);
-    TTF_Font *fb = font(weight ? FACE_FB_BOLD : FACE_FB_REG, si);
-    TTF_Font *fb2 = font(weight ? FACE_FB2_BOLD : FACE_FB2_REG, si);
+    /* The fallbacks open only for a glyph the primary font lacks: opening the
+       16 MB CJK font from the memory card took about 1 s per size and froze
+       the first frame, which is all Latin text. */
+    TTF_Font *fb = NULL, *fb2 = NULL;
+    bool fb_open = false;
     int n = 0;
     const char *p = s;
     while (*p) {
@@ -356,6 +359,11 @@ static int split_runs(const char *s, int si, int weight, run *runs)
         uint32_t cp = utf8_next(&p);
         TTF_Font *f = prim;
         if (cp > 0x7F && cp <= 0xFFFF && !TTF_GlyphIsProvided(prim, (Uint16)cp)) {
+            if (!fb_open) {
+                fb = font(weight ? FACE_FB_BOLD : FACE_FB_REG, si);
+                fb2 = font(weight ? FACE_FB2_BOLD : FACE_FB2_REG, si);
+                fb_open = true;
+            }
             if (fb && TTF_GlyphIsProvided(fb, (Uint16)cp))
                 f = fb;
             else if (fb2 && TTF_GlyphIsProvided(fb2, (Uint16)cp))

@@ -353,8 +353,8 @@ void screen_now_playing(void)
 
     /* Track info. With lyrics showing, the cover moves next to the title,
        centred on the text from the title's top to the artist's bottom
-       (text_vmetrics). Text with CJK sits a few px lower than Latin, so that
-       span is measured, once per title and artist. */
+       (text_vmetrics). CJK glyphs reach higher and lower than Latin ones on
+       the same baseline, so that span is measured, once per title and artist. */
     float x0 = 480, w = SCREEN_W - x0 - 56;
     float tx = x0;
     if (show_lyrics) {

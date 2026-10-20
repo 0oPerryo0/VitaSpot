@@ -92,9 +92,15 @@ Changes:
     Vita's volume buttons, dragging the slider) kept `update_volume` set,
     and that blocks context resolving: tapping another song did nothing until
     the volume stopped changing.
+* `src/state/context.rs` - `valid_resolve_uri` also rejects
+  `spotify:web-api`, the placeholder uri of a context built from plain tracks
+  (`LoadRequest::from_tracks`, used for a song played from search). Upstream
+  asked Spotify for autoplay of that uri, got 400 Bad Request, and nothing
+  followed the song, so skip stopped playback. Like a search context, it now
+  falls back to the current track's uri, which gives a radio of that song.
 
-Everything else (context resolving, transfer, dealer handling, shuffle/repeat)
-is untouched upstream code.
+Everything else (transfer, dealer handling, shuffle/repeat, the rest of
+context resolving) is untouched upstream code.
 
 ## librespot-discovery
 

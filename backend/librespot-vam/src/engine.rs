@@ -101,6 +101,8 @@ const SETTLE_MS: u64 = 1000;
 // The volume slider counts as being dragged this long after its last value;
 // meanwhile it, not the volume buttons, decides the volume.
 const SLIDER_ACTIVE_MS: u64 = 300;
+// How long a skip waits for Spotify's autoplay songs to arrive.
+const NEXT_WAIT_MS: u64 = 4000;
 
 pub async fn run(shared: Arc<Shared>) {
     let backend = shared.backend.clone();
@@ -404,7 +406,7 @@ impl Engine {
                 self.optimistic_resume();
                 self.spawn_simple_spirc(true, |spirc| spirc.play());
             }
-            Command::Next => self.spawn_simple_spirc(true, |spirc| spirc.next()),
+            Command::Next => self.spawn_next(),
             Command::Prev => self.spawn_simple_spirc(true, |spirc| spirc.prev()),
             Command::Seek(position) => {
                 log::info!(
@@ -466,6 +468,40 @@ impl Engine {
                 backend.emit_toast("Another Spotify device is controlling playback.");
             }
             if let Err(why) = action(&spirc) {
+                backend.emit_error(&format!("Playback command failed: {why}"));
+            }
+        });
+    }
+
+    /// Skip to the next track. A song played on its own (from search) has
+    /// nothing queued until Spotify's autoplay songs arrive a moment later,
+    /// and a skip before then stops playback; so wait for them first.
+    fn spawn_next(&self) {
+        let Some(spirc) = self.spirc.clone() else {
+            self.backend.emit_error("Not signed in to Spotify.");
+            return;
+        };
+        let backend = self.backend.clone();
+        let needs_transfer = !self.last_snapshot.is_active;
+        tokio::spawn(async move {
+            if needs_transfer && !ensure_active(&spirc).await {
+                backend.emit_toast("Another Spotify device is controlling playback.");
+            }
+            let deadline = tokio::time::Instant::now() + Duration::from_millis(NEXT_WAIT_MS);
+            loop {
+                let snapshot = spirc.snapshot();
+                // Repeat wraps around without next tracks; with autoplay off
+                // they never come, and the skip stops as before.
+                if !snapshot.next_tracks.is_empty()
+                    || snapshot.repeat_context
+                    || snapshot.track_uri.is_empty()
+                    || tokio::time::Instant::now() >= deadline
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            if let Err(why) = spirc.next() {
                 backend.emit_error(&format!("Playback command failed: {why}"));
             }
         });

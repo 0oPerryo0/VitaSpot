@@ -20,6 +20,9 @@ use uuid::Uuid;
 
 const LOCAL_FILES_IDENTIFIER: &str = "spotify:local-files";
 const SEARCH_IDENTIFIER: &str = "spotify:search";
+// The placeholder uri `load_context_from_tracks` gives a context built from
+// plain tracks. Spotify can't resolve it (autoplay answers 400 Bad Request).
+const WEB_API_IDENTIFIER: &str = "spotify:web-api";
 
 #[derive(Debug)]
 pub struct StateContext {
@@ -138,7 +141,7 @@ impl ConnectState {
     }
 
     pub fn valid_resolve_uri(uri: &str) -> Option<&str> {
-        if uri.is_empty() || uri.starts_with(SEARCH_IDENTIFIER) {
+        if uri.is_empty() || uri.starts_with(SEARCH_IDENTIFIER) || uri == WEB_API_IDENTIFIER {
             None
         } else {
             Some(uri)

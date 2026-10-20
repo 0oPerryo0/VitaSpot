@@ -26,6 +26,7 @@
 #define PRIORITY_BACKGROUND 170
 
 static bool g_swap_confirm;
+static int power_callback_thread(SceSize args, void *argp);
 
 void platform_init(void)
 {
@@ -36,6 +37,11 @@ void platform_init(void)
     scePowerSetGpuXbarClockFrequency(166);
 
     sceKernelChangeThreadPriority(SCE_KERNEL_THREAD_ID_SELF, PRIORITY_UI);
+
+    /* Above the UI so the backlight comes back before the app is suspended. */
+    SceUID cb_thread = sceKernelCreateThread("vam_power", power_callback_thread, 100, 0x4000, 0, 0, NULL);
+    if (cb_thread >= 0)
+        sceKernelStartThread(cb_thread, 0, NULL);
 
     SceAppUtilInitParam init;
     SceAppUtilBootParam boot;
@@ -70,7 +76,8 @@ void platform_frame(bool keep_awake)
 
 bool platform_is_vita(void) { return true; }
 
-static screen_level g_screen = SCREEN_ON;
+static volatile screen_level g_screen = SCREEN_ON;
+static volatile int g_woken;
 
 /* The brightness the user set in Settings. Setting the backlight doesn't
    change it, so the full level can always be restored from here. */
@@ -80,6 +87,49 @@ static int user_brightness(void)
     if (sceRegMgrGetKeyInt("/CONFIG/DISPLAY", "brightness", &v) < 0 || v < 21)
         return 0;
     return v;
+}
+
+/* Leaving the app dark is the one thing that must not happen: the PS button,
+   the power button and suspend all leave VitaSpot, and nothing would turn the
+   backlight back on in the LiveArea or after resuming. The power callback
+   hears about each of these and restores it first. */
+#define WAKE_EVENTS                                                                                       (SCE_POWER_CB_BUTTON_PS_PRESS | SCE_POWER_CB_BUTTON_PS_HOLD | SCE_POWER_CB_BUTTON_PS_START_PRESS |        SCE_POWER_CB_BUTTON_PS_POWER_PRESS | SCE_POWER_CB_BUTTON_POWER_PRESS | SCE_POWER_CB_BUTTON_POWER_HOLD |      SCE_POWER_CB_APP_SUSPEND | SCE_POWER_CB_SYSTEM_SUSPEND | SCE_POWER_CB_APP_RESUME |                        SCE_POWER_CB_APP_RESUMING | SCE_POWER_CB_SYSTEM_RESUMING | SCE_POWER_CB_SYSTEM_RESUME)
+
+static int power_callback(int notify_id, int notify_count, int notify_arg, void *user)
+{
+    (void)notify_id;
+    (void)notify_count;
+    (void)user;
+    if ((notify_arg & WAKE_EVENTS) && g_screen != SCREEN_ON) {
+        if (g_screen == SCREEN_OFF)
+            scePowerRequestDisplayOn();
+        int full = user_brightness();
+        sceAVConfigSetDisplayBrightness(full ? full : 65536);
+        g_screen = SCREEN_ON;
+        g_woken = 1;
+    }
+    return 0;
+}
+
+/* Callbacks only run while their thread waits with a CB wait. */
+static int power_callback_thread(SceSize args, void *argp)
+{
+    (void)args;
+    (void)argp;
+    SceUID cb = sceKernelCreateCallback("vam_power_cb", 0, power_callback, NULL);
+    if (cb < 0 || scePowerRegisterCallback(cb) < 0)
+        return 0;
+    for (;;)
+        sceKernelDelayThreadCB(60 * 1000 * 1000);
+    return 0;
+}
+
+bool platform_take_wake(void)
+{
+    if (!g_woken)
+        return false;
+    g_woken = 0;
+    return true;
 }
 
 /* Only the backlight changes. scePowerRequestDisplayOff() also silenced the

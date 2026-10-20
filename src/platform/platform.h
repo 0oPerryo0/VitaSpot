@@ -32,6 +32,9 @@ typedef enum screen_level { SCREEN_ON, SCREEN_DIM, SCREEN_OFF } screen_level;
 /* Backlight: full (the user's brightness setting), dimmed, or off. Desktop
  * has no backlight; the app shades the window instead. */
 void platform_set_screen(screen_level level);
+/* True once after the system put the screen back on by itself (the PS or
+ * power button, suspend, resume), so the app's screen state can follow. */
+bool platform_take_wake(void);
 
 /* Physical button name ("Cross", "L", "Start"...), following the console's
  * Enter-button setting for Confirm / Back. */

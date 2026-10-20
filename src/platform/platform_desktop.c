@@ -33,6 +33,8 @@ bool platform_is_vita(void) { return false; }
 
 void platform_set_screen(screen_level level) { (void)level; }
 
+bool platform_take_wake(void) { return false; }
+
 const char *platform_btn_label(btn b)
 {
     static const char *const names[BTN_COUNT] = { "Up", "Down", "Left", "Right", "Cross", "Circle",

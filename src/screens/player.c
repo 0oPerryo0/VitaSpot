@@ -7,6 +7,8 @@
 #include "../app.h"
 #include "../gfx/images.h"
 #include "../gfx/text.h"
+#include "../lyrics.h"
+#include "../prefs.h"
 #include "../theme.h"
 
 /* How long a lifted finger may stay off a slider before the drag commits. */
@@ -319,22 +321,47 @@ void screen_now_playing(void)
         text_draw_aligned(A.player.context_title, SCREEN_W / 2.0f, oy + 32, FS_S, FW_BOLD, rgb(C_TEXT), 500,
                           ALIGN_CENTER);
     }
+    /* Lyrics toggle. Greyed out and inert while the track's lyrics are
+       loading or when it has none. */
+    bool has_lyrics = lyrics_available();
+    bool show_lyrics = has_lyrics && prefs_get()->lyrics;
+    if (has_lyrics) {
+        if (icon_button(ui_id("np.lyrics_toggle"), ICON_MIC, SCREEN_W - 148, oy + 32, 24, 52,
+                        show_lyrics ? rgb(C_ACCENT) : rgb(C_TEXT))) {
+            prefs_get()->lyrics = !prefs_get()->lyrics;
+            prefs_changed();
+        }
+    } else {
+        gfx_icon(ICON_MIC, SCREEN_W - 148, oy + 32, 24, with_alpha(rgb(C_TEXT), 0.3f));
+    }
     if (icon_button(ui_id("np.queue"), ICON_QUEUE, SCREEN_W - 92, oy + 32, 24, 52, rgb(C_TEXT)))
         app_open_uri("vam:queue");
     if (icon_button(ui_id("np.more"), ICON_MORE, SCREEN_W - 36, oy + 32, 24, 52, rgb(C_TEXT)))
         app_open_sheet(tr, A.player.context_uri, 0);
 
-    /* Artwork */
+    /* Artwork, or the lyrics in its place (fading in when switched on). */
+    static float lyrics_fade;
+    lyrics_fade = show_lyrics ? fminf(1, lyrics_fade + A.dt / ANIM_MED) : 0;
     rectf art = rect(64, oy + 82, 360, 360);
-    gfx_shadow(art, 8, 22, 200);
-    draw_cover(tr->image_url, art, 8, tr->kind, tr->title);
+    if (show_lyrics) {
+        lyrics_draw(art, lyrics_fade);
+    } else {
+        gfx_shadow(art, 8, 22, 200);
+        draw_cover(tr->image_url, art, 8, tr->kind, tr->title);
+    }
 
-    /* Track info */
+    /* Track info. With lyrics showing, the cover moves next to the title. */
     float x0 = 480, w = SCREEN_W - x0 - 56;
-    marquee_text(ui_id("np.title"), tr->title, x0, oy + 150, FS_XXL, FW_BOLD, rgb(C_TEXT), w - 50);
-    rectf artist_r = rect(x0, oy + 192, w - 50, 32);
+    float tx = x0;
+    if (show_lyrics) {
+        draw_cover(tr->image_url, rect(x0, oy + 152, 64, 64), 4, tr->kind, tr->title);
+        tx = x0 + 78;
+    }
+    float tw = w - 50 - (tx - x0);
+    marquee_text(ui_id("np.title"), tr->title, tx, oy + 150, FS_XXL, FW_BOLD, rgb(C_TEXT), tw);
+    rectf artist_r = rect(tx, oy + 192, tw, 32);
     ui_res ar = ui_item(ui_id("np.artist"), artist_r, 0);
-    text_draw(tr->subtitle, x0, oy + 196, FS_L, FW_REGULAR, rgb(ar.pressed ? C_TEXT : C_SUBTEXT), w - 50);
+    text_draw(tr->subtitle, tx, oy + 196, FS_L, FW_REGULAR, rgb(ar.pressed ? C_TEXT : C_SUBTEXT), tw);
     if (ar.focused)
         draw_focus_ring(artist_r, 4);
     if (ar.clicked && tr->artist_uri[0])

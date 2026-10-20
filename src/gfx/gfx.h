@@ -72,7 +72,8 @@ typedef enum icon_id {
     ICON_VOLUME,
     ICON_DEVICE,
     ICON_SETTINGS,
-    ICON_SETTINGS_BOLD
+    ICON_SETTINGS_BOLD,
+    ICON_MIC
 } icon_id;
 
 void gfx_init(SDL_Renderer *renderer);

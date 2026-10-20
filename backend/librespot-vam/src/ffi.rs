@@ -177,7 +177,7 @@ pub unsafe extern "C" fn vam_poll_event(out: *mut vam_event) -> std::os::raw::c_
     }
 }
 
-/// Frees `event->page` / `event->data`. Safe to call on any event.
+/// Frees `event->page` / `event->data` / `event->lyrics`. Safe on any event.
 #[no_mangle]
 pub unsafe extern "C" fn vam_event_release(event: *mut vam_event) {
     if event.is_null() {
@@ -282,6 +282,27 @@ pub unsafe extern "C" fn vam_request_image(url: *const c_char) -> u32 {
     };
     let request_id = backend.next_request_id();
     let queued = backend.send_command(Command::RequestImage { request_id, url });
+    if queued {
+        request_id
+    } else {
+        0
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vam_request_lyrics(track_uri: *const c_char) -> u32 {
+    let track_uri = cstr_to_string(track_uri);
+    if track_uri.is_empty() {
+        return 0;
+    }
+    let Some(backend) = backend() else {
+        return 0;
+    };
+    let request_id = backend.next_request_id();
+    let queued = backend.send_command(Command::RequestLyrics {
+        request_id,
+        track_uri,
+    });
     if queued {
         request_id
     } else {

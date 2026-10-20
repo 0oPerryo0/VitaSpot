@@ -22,6 +22,7 @@ set(VAM_BACKEND_LINK_LIBS "" CACHE STRING "Extra libraries the backend needs (ex
 set(FRONTEND_SOURCES
     src/main.c
     src/app.c
+    src/lyrics.c
     src/model.c
     src/power.c
     src/prefs.c

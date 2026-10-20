@@ -24,6 +24,7 @@ use tokio::sync::{mpsc::UnboundedReceiver, oneshot};
 use crate::abi::*;
 use crate::images;
 use crate::internal;
+use crate::lyrics;
 use crate::metadata;
 use crate::model::Item;
 use crate::pages;
@@ -67,6 +68,10 @@ pub enum Command {
     RequestImage {
         request_id: u32,
         url: String,
+    },
+    RequestLyrics {
+        request_id: u32,
+        track_uri: String,
     },
 }
 
@@ -372,6 +377,10 @@ impl Engine {
                 limit,
             } => self.spawn_page(request_id, uri, offset, limit),
             Command::RequestImage { request_id, url } => self.spawn_image(request_id, url),
+            Command::RequestLyrics {
+                request_id,
+                track_uri,
+            } => self.spawn_lyrics(request_id, track_uri),
             Command::SetSaved {
                 request_id,
                 uri,
@@ -635,6 +644,32 @@ impl Engine {
                     event.data = boxed.as_ptr();
                     event.data_size = boxed.len() as u32;
                     std::mem::forget(boxed);
+                }
+                Err(why) => {
+                    event.result = why.result;
+                    copy_str(&mut event.message, &why.message);
+                }
+            }
+            backend.events.push(event);
+        });
+    }
+
+    fn spawn_lyrics(&self, request_id: u32, track_uri: String) {
+        let shared = self.shared.clone();
+        let backend = self.backend.clone();
+        tokio::spawn(async move {
+            if backend.events.is_cancelled(request_id) {
+                backend.events.clear_cancelled(request_id);
+                return;
+            }
+            let mut event = vam_event::default();
+            event.type_ = VAM_EV_LYRICS;
+            event.request_id = request_id;
+            copy_str(&mut event.uri, &track_uri);
+            match lyrics::fetch_lyrics(&shared, &track_uri).await {
+                Ok(lyrics) => {
+                    event.result = VAM_OK;
+                    event.lyrics = lyrics.into_raw();
                 }
                 Err(why) => {
                     event.result = why.result;

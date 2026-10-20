@@ -382,6 +382,96 @@ static void test_cancel_and_image(void)
     }
 }
 
+/* Waits for the VAM_EV_LYRICS reply to id. */
+static bool wait_lyrics(uint32_t id, vam_event *out, unsigned timeout_ms)
+{
+    uint64_t start = now_ms();
+    while (id && now_ms() - start < timeout_ms) {
+        if (!vam_poll_event(out)) {
+            sleep_ms(5);
+            continue;
+        }
+        if (out->type == VAM_EV_LYRICS && out->request_id == id)
+            return true;
+        vam_event_release(out);
+    }
+    return false;
+}
+
+static void check_lyrics_invariants(const vam_event *ev)
+{
+    CHECK(has_nul(ev->uri, sizeof(ev->uri)), "lyrics event uri not NUL terminated");
+    CHECK(has_nul(ev->message, sizeof(ev->message)), "lyrics event message not NUL terminated");
+    if (ev->result != VAM_OK) {
+        CHECK(ev->lyrics == NULL, "lyrics pointer set despite error %d", ev->result);
+        return;
+    }
+    const vam_lyrics *l = ev->lyrics;
+    CHECK(l != NULL, "VAM_OK lyrics event without lyrics");
+    if (!l)
+        return;
+    CHECK(l->line_count > 0 && l->lines != NULL, "lyrics without lines");
+    CHECK(l->text_size > 0 && l->text != NULL, "lyrics without text");
+    if (!l->line_count || !l->lines || !l->text_size || !l->text)
+        return;
+    CHECK(l->text[l->text_size - 1] == '\0', "lyrics text not NUL terminated");
+    for (uint32_t i = 0; i < l->line_count; i++) {
+        CHECK(l->lines[i].text_offset < l->text_size, "lyrics line %u offset out of range", i);
+        if (l->synced && i > 0)
+            CHECK(l->lines[i].start_ms >= l->lines[i - 1].start_ms,
+                  "lyrics line %u starts before line %u", i, i - 1);
+    }
+}
+
+static void test_lyrics(void)
+{
+    vam_event found;
+    char uri[VAM_URI_MAX] = "";
+    if (request_and_wait("vam:search:golden", 0, 20, &found, 20000)) {
+        if (found.result == VAM_OK && found.page) {
+            for (uint32_t s = 0; s < found.page->section_count && !uri[0]; s++) {
+                const vam_section *section = &found.page->sections[s];
+                for (uint32_t i = 0; i < section->count; i++) {
+                    if (section->items[i].kind == VAM_KIND_TRACK) {
+                        snprintf(uri, sizeof(uri), "%s", section->items[i].uri);
+                        break;
+                    }
+                }
+            }
+        }
+        vam_event_release(&found);
+    }
+    vam_event ev;
+    if (uri[0]) {
+        uint32_t id = vam_request_lyrics(uri);
+        CHECK(id != 0, "vam_request_lyrics returned 0");
+        bool got = wait_lyrics(id, &ev, 20000);
+        CHECK(got, "no reply for lyrics request");
+        if (got) {
+            check_lyrics_invariants(&ev);
+            CHECK(strncmp(ev.uri, uri, sizeof(ev.uri) - 1) == 0,
+                  "lyrics reply uri %s, expected %s", ev.uri, uri);
+            CHECK(ev.result == VAM_OK || ev.result == VAM_ERR_NOT_FOUND,
+                  "lyrics request failed: %d %s", ev.result, ev.message);
+            printf("lyrics %s -> %s\n", uri, ev.result == VAM_OK ? "ok" : "none");
+            vam_event_release(&ev);
+        }
+    } else {
+        skip("lyrics (no track in search results)");
+    }
+
+    /* Anything but a track has no lyrics. */
+    uint32_t id = vam_request_lyrics("spotify:episode:0000000000000000000000");
+    CHECK(id != 0, "vam_request_lyrics for an episode returned 0");
+    if (wait_lyrics(id, &ev, 20000)) {
+        check_lyrics_invariants(&ev);
+        CHECK(ev.result == VAM_ERR_NOT_FOUND, "episode lyrics: expected NOT_FOUND, got %d", ev.result);
+        vam_event_release(&ev);
+    } else {
+        CHECK(false, "no reply for episode lyrics request");
+    }
+}
+
 static void test_saved(/* from a page */)
 {
     vam_event library;
@@ -668,6 +758,7 @@ int main(int argc, char **argv)
     if (logged_in && g_premium) {
         test_paging();
         test_cancel_and_image();
+        test_lyrics();
         test_player();
         test_saved();
     }

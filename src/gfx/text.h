@@ -16,6 +16,12 @@ void text_begin_frame(void);
 int text_renders_this_frame(void);
 
 int text_line_height(int size);
+/* Width of `s` laid out in one line, without rendering or caching it. Text
+ * that needs the CJK fallback measures with the wrong glyphs until
+ * text_fonts_ready(). */
+int text_measure(const char *s, int size, font_weight w);
+/* True once the font files are in memory and every script measures right. */
+bool text_fonts_ready(void);
 /* Width of `s`, after ellipsizing to max_w when max_w > 0. */
 int text_width(const char *s, int size, font_weight w, float max_w);
 /* Draws with the top of the line box at y. Returns drawn width. */

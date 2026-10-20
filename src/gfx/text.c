@@ -606,6 +606,15 @@ int text_line_height(int size)
     return f ? TTF_FontHeight(f) : size + 4;
 }
 
+int text_measure(const char *s, int size, font_weight w)
+{
+    if (!g_ready || !s || !*s)
+        return 0;
+    return measure(s, size_index(size), w);
+}
+
+bool text_fonts_ready(void) { return g_ready && g_reopened; }
+
 int text_width(const char *s, int size, font_weight w, float max_w)
 {
     if (!g_ready || !s || !*s)

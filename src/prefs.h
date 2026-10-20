@@ -10,6 +10,7 @@ typedef struct prefs {
     int dim_after;  /* seconds without input, 0 = never     */
     int off_after;  /* seconds without input, 0 = never     */
     int bitrate;    /* streaming quality: 96, 160 or 320    */
+    bool lyrics;    /* Now Playing shows lyrics, not the art */
 } prefs;
 
 /* Defaults, then whatever settings.txt has. Call before vam_init. */

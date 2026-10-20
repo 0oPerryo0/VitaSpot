@@ -51,7 +51,7 @@ pub const SET_ARTIST: &str = "artist";
 // Errors and ids
 // ---------------------------------------------------------------------------
 
-fn api_error(endpoint: &str, error: Error) -> ApiError {
+pub(crate) fn api_error(endpoint: &str, error: Error) -> ApiError {
     log::warn!("spclient {endpoint} failed: {error}");
     match error.kind {
         ErrorKind::ResourceExhausted => {

@@ -34,7 +34,7 @@
 extern "C" {
 #endif
 
-#define VAM_API_VERSION 1
+#define VAM_API_VERSION 2
 
 #define VAM_URI_MAX  96
 #define VAM_TEXT_MAX 192
@@ -111,7 +111,8 @@ typedef enum vam_event_type {
     VAM_EV_REQUEST_DONE = 5,    /* reply to vam_set_saved()                */
     VAM_EV_SAVED_CHANGED = 6,   /* uri's saved/followed state changed      */
     VAM_EV_ERROR = 7,           /* unsolicited error, show to the user     */
-    VAM_EV_TOAST = 8            /* informational message, show briefly     */
+    VAM_EV_TOAST = 8,           /* informational message, show briefly     */
+    VAM_EV_LYRICS = 9           /* reply to vam_request_lyrics()           */
 } vam_event_type;
 
 /* ------------------------------------------------------------------------ */
@@ -198,6 +199,23 @@ typedef struct vam_auth_state {
     char image_url[VAM_URL_MAX];   /* profile picture; empty if none       */
 } vam_auth_state;
 
+/* Lyrics of one track. All lines share one text buffer: line i is the
+ * NUL-terminated string at text + lines[i].text_offset (may be empty for an
+ * instrumental gap). Lines are in playback order. */
+typedef struct vam_lyrics_line {
+    uint32_t start_ms;             /* line start; 0 when not synced         */
+    uint32_t text_offset;          /* byte offset into vam_lyrics.text      */
+} vam_lyrics_line;
+
+typedef struct vam_lyrics {
+    uint8_t synced;                /* 1 = start_ms is valid for every line  */
+    uint8_t reserved[3];
+    uint32_t line_count;
+    vam_lyrics_line *lines;
+    uint32_t text_size;            /* bytes in text, including every NUL    */
+    const char *text;
+} vam_lyrics;
+
 typedef struct vam_event {
     int32_t type;                  /* vam_event_type                        */
     uint32_t request_id;           /* 0 for unsolicited events              */
@@ -209,6 +227,7 @@ typedef struct vam_event {
     vam_page *page;                /* PAGE on success, else NULL            */
     const uint8_t *data;           /* IMAGE on success: encoded JPEG/PNG    */
     uint32_t data_size;
+    vam_lyrics *lyrics;            /* LYRICS on success, else NULL          */
 } vam_event;
 
 typedef struct vam_config {
@@ -249,7 +268,7 @@ void vam_log(const char *message);
  * Each returned event must be passed to vam_event_release() exactly once. */
 int vam_poll_event(vam_event *out);
 
-/* Frees event->page / event->data. Safe to call on any event. */
+/* Frees event->page / event->data / event->lyrics. Safe on any event. */
 void vam_event_release(vam_event *event);
 
 /* ------------------------------------------------------------------------ */
@@ -299,6 +318,11 @@ uint32_t vam_request_page(const char *uri, uint32_t offset, uint32_t limit);
 /* Download an image_url. Reply data is the encoded file (JPEG/PNG). The
  * backend should keep a small disk/memory cache. */
 uint32_t vam_request_image(const char *url);
+
+/* Fetch the lyrics of a spotify:track: URI. The VAM_EV_LYRICS reply has
+ * uri = track_uri and, on VAM_OK, at least one line in event->lyrics.
+ * VAM_ERR_NOT_FOUND means the track has no lyrics. */
+uint32_t vam_request_lyrics(const char *track_uri);
 
 /* Best effort: drop the reply of a request the UI no longer needs. */
 void vam_cancel(uint32_t request_id);

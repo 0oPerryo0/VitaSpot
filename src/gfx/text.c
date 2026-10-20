@@ -54,14 +54,20 @@ static entry g_pending;     /* stand-in returned once the budget is spent */
 /* Font files read into memory and shared by every size and weight.
  * Opening by path made FreeType stream glyphs from app0: with blocking
  * reads. Reading the 16 MB CJK font takes ~2 s on the Vita, so a worker
- * thread loads the files; until it finishes, fonts stream from disk, and
- * once it does they are reopened from memory between frames. */
+ * thread loads the files; until it finishes, the primary fonts stream from
+ * disk (the fallbacks wait), and once it does they are reopened from memory
+ * between frames. */
 #define FONT_FILES 4
 static struct { char path[512]; void *data; size_t size; } g_files[FONT_FILES];
 static int g_nfiles;
 static SDL_Thread *g_preload;
 static SDL_atomic_t g_preloaded;    /* worker finished writing g_files */
 static bool g_reopened;
+/* Set by split_runs when a string needed a fallback before the files were in
+ * memory. Opening the CJK font from disk took ~1 s per size, and a page of
+ * CJK titles opens several sizes at once (an 8 s freeze after login), so such
+ * strings wait for the preload instead. */
+static bool g_fb_deferred;
 
 #define WRAP_N 16
 #define WRAP_LINES 6
@@ -273,6 +279,14 @@ void text_begin_frame(void)
                     TTF_CloseFont(g_faces[i].f[s]);
                     g_faces[i].f[s] = NULL;
                 }
+        /* Line breaks so far measured deferred CJK text with the primary
+           font's missing-glyph boxes; lay it out again with the real one. */
+        for (int i = 0; i < WRAP_N; i++) {
+            free(g_wrap[i].str);
+            for (int j = 0; j < g_wrap[i].n; j++)
+                free(g_wrap[i].lines[j]);
+        }
+        memset(g_wrap, 0, sizeof(g_wrap));
     }
     g_renders = 0;
     g_render_deadline =
@@ -347,9 +361,10 @@ typedef struct run { const char *start; int len; TTF_Font *f; } run;
 static int split_runs(const char *s, int si, int weight, run *runs)
 {
     TTF_Font *prim = font(weight ? FACE_BOLD : FACE_REG, si);
-    /* The fallbacks open only for a glyph the primary font lacks: opening the
-       16 MB CJK font from the memory card took about 1 s per size and froze
-       the first frame, which is all Latin text. */
+    /* The fallbacks open only for a glyph the primary font lacks, and only
+       from memory: opening the 16 MB CJK font from the memory card took about
+       1 s per size. Until the preload is done the glyph keeps the primary
+       font and g_fb_deferred tells the caller not to keep the result. */
     TTF_Font *fb = NULL, *fb2 = NULL;
     bool fb_open = false;
     int n = 0;
@@ -360,8 +375,12 @@ static int split_runs(const char *s, int si, int weight, run *runs)
         TTF_Font *f = prim;
         if (cp > 0x7F && cp <= 0xFFFF && !TTF_GlyphIsProvided(prim, (Uint16)cp)) {
             if (!fb_open) {
-                fb = font(weight ? FACE_FB_BOLD : FACE_FB_REG, si);
-                fb2 = font(weight ? FACE_FB2_BOLD : FACE_FB2_REG, si);
+                if (SDL_AtomicGet(&g_preloaded)) {
+                    fb = font(weight ? FACE_FB_BOLD : FACE_FB_REG, si);
+                    fb2 = font(weight ? FACE_FB2_BOLD : FACE_FB2_REG, si);
+                } else if (g_faces[FACE_FB_REG].ok || g_faces[FACE_FB2_REG].ok) {
+                    g_fb_deferred = true;
+                }
                 fb_open = true;
             }
             if (fb && TTF_GlyphIsProvided(fb, (Uint16)cp))
@@ -523,11 +542,14 @@ static entry *lookup(const char *s, int si, int weight, int max_w)
         }
     }
 
-    if (g_renders >= RENDERS_PER_FRAME || (g_renders > 0 && SDL_GetPerformanceCounter() > g_render_deadline)) {
-        /* Over budget: report the width layout needs, draw nothing yet. */
-        int w = measure(s, si, weight);
+    g_fb_deferred = false;
+    int full_w = measure(s, si, weight);
+    if (g_fb_deferred || g_renders >= RENDERS_PER_FRAME ||
+        (g_renders > 0 && SDL_GetPerformanceCounter() > g_render_deadline)) {
+        /* Over budget, or waiting for the CJK font: report the width layout
+           needs, draw nothing yet. */
         memset(&g_pending, 0, sizeof(g_pending));
-        g_pending.w = max_w > 0 && w > max_w ? max_w : w;
+        g_pending.w = max_w > 0 && full_w > max_w ? max_w : full_w;
         return &g_pending;
     }
     g_renders++;
@@ -552,7 +574,7 @@ static entry *lookup(const char *s, int si, int weight, int max_w)
 
     char fitted[1100];
     const char *src = s;
-    if (max_w > 0 && measure(s, si, weight) > max_w) {
+    if (max_w > 0 && full_w > max_w) {
         ellipsize(s, si, weight, max_w, fitted, sizeof(fitted));
         src = fitted;
     }

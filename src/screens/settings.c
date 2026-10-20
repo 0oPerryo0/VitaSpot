@@ -1,10 +1,11 @@
-/* Settings tab: the signed-in account (with log out) and about. */
+/* Settings tab: the signed-in account (with log out), screen power, and about. */
 
 #include <stdio.h>
 
 #include "../app.h"
 #include "../gfx/images.h"
 #include "../gfx/text.h"
+#include "../power.h"
 #include "../theme.h"
 
 /* Log out asks once more before it forgets the saved login. */
@@ -59,6 +60,78 @@ static float account_card(float x, float y, float w)
     return card.h;
 }
 
+#define SCREEN_ROW_H 64
+
+static void fmt_seconds(int s, char *buf, size_t n)
+{
+    if (s <= 0)
+        snprintf(buf, n, "Never");
+    else if (s < 60)
+        snprintf(buf, n, "%d seconds", s);
+    else if (s < 120)
+        snprintf(buf, n, "1 minute");
+    else
+        snprintf(buf, n, "%d minutes", s / 60);
+}
+
+/* The choice after cur, wrapping; tapping the value cycles through them. */
+static int next_choice(const int *choices, int cur)
+{
+    for (int i = 0; i < POWER_CHOICE_COUNT; i++)
+        if (choices[i] == cur)
+            return choices[(i + 1) % POWER_CHOICE_COUNT];
+    return choices[0];
+}
+
+static void timer_row(uint32_t id, const char *label, int *value, const int *choices, float x, float cy, float right)
+{
+    text_draw_vc(label, x, cy, FS_M, FW_REGULAR, rgb(C_TEXT), right - x - 160);
+    char val[32];
+    fmt_seconds(*value, val, sizeof(val));
+    if (pill_button(id, val, right - pill_w(val), cy - 20, false, NULL)) {
+        *value = next_choice(choices, *value);
+        power_settings_save();
+    }
+}
+
+static float screen_card(float x, float y, float w)
+{
+    power_settings *ps = power_settings_get();
+    rectf card = rect(x, y, w, SCREEN_ROW_H * 3);
+    gfx_rrect(card, 8, rgb(C_SURFACE));
+    for (int i = 1; i < 3; i++)
+        gfx_rect(rect(card.x + 16, card.y + SCREEN_ROW_H * i, card.w - 32, 1), rgb(C_DIVIDER));
+    float lx = card.x + 16, right = card.x + card.w - 16;
+
+    /* Screen-off combo: "Change", then hold the two new buttons together. */
+    btn a, b;
+    if (ui_captured_combo(&a, &b)) {
+        ps->combo[0] = a;
+        ps->combo[1] = b;
+        power_settings_save();
+    }
+    bool capturing = ui_capturing_combo();
+    float cy = card.y + SCREEN_ROW_H / 2.0f;
+    text_draw_vc("Screen off combo", lx, cy, FS_M, FW_REGULAR, rgb(C_TEXT), 260);
+    const char *action = capturing ? "Cancel" : "Change";
+    float aw = pill_w(action);
+    char combo[64];
+    snprintf(combo, sizeof(combo), "%s + %s", platform_btn_label(ps->combo[0]), platform_btn_label(ps->combo[1]));
+    text_draw_aligned(capturing ? "Hold two buttons..." : combo, right - aw - 16, cy - text_line_height(FS_M) / 2.0f,
+                      FS_M, capturing ? FW_BOLD : FW_REGULAR, rgb(capturing ? C_ACCENT : C_SUBTEXT), 0, ALIGN_RIGHT);
+    if (pill_button(ui_id("settings.combo"), action, right - aw, cy - 20, false, NULL))
+        ui_capture_combo(!capturing);
+
+    timer_row(ui_id("settings.dim"), "Dim screen after", &ps->dim_after, POWER_DIM_CHOICES, lx,
+              card.y + SCREEN_ROW_H * 1.5f, right);
+    timer_row(ui_id("settings.off"), "Turn screen off after", &ps->off_after, POWER_OFF_CHOICES, lx,
+              card.y + SCREEN_ROW_H * 2.5f, right);
+
+    text_draw("Music keeps playing with the screen off. Press any button to turn it back on.", x,
+              card.y + card.h + 10, FS_S, FW_REGULAR, rgb(C_MUTED), w);
+    return card.h + 10 + text_line_height(FS_S);
+}
+
 static float about_card(float x, float y, float w)
 {
     rectf card = rect(x, y, w, 96);
@@ -72,8 +145,11 @@ static float about_card(float x, float y, float w)
 void screen_settings(view *v)
 {
     /* Coming back to the tab starts from the plain Log out button. */
-    if (A.time - g_last_drawn > 0.25f)
+    if (A.time - g_last_drawn > 0.25f) {
         g_confirm_logout = false;
+        if (ui_capturing_combo())
+            ui_capture_combo(false);
+    }
     g_last_drawn = A.time;
 
     rectf vp = rect(CONTENT_X, CONTENT_Y, CONTENT_W, CONTENT_H);
@@ -87,6 +163,10 @@ void screen_settings(view *v)
     text_draw("Account", x, y, FS_L, FW_BOLD, rgb(C_TEXT), w);
     y += 38;
     y += account_card(x, y, w) + 32;
+
+    text_draw("Screen", x, y, FS_L, FW_BOLD, rgb(C_TEXT), w);
+    y += 38;
+    y += screen_card(x, y, w) + 32;
 
     text_draw("About", x, y, FS_L, FW_BOLD, rgb(C_TEXT), w);
     y += 38;

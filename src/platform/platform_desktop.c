@@ -31,6 +31,15 @@ void platform_frame(bool keep_awake) { (void)keep_awake; }
 
 bool platform_is_vita(void) { return false; }
 
+void platform_set_screen(screen_level level) { (void)level; }
+
+const char *platform_btn_label(btn b)
+{
+    static const char *const names[BTN_COUNT] = { "Up", "Down", "Left", "Right", "Cross", "Circle",
+                                                  "Triangle", "Square", "L", "R", "Start", "Select" };
+    return b >= 0 && b < BTN_COUNT ? names[b] : "?";
+}
+
 void platform_lower_thread_priority(void) { SDL_SetThreadPriority(SDL_THREAD_PRIORITY_LOW); }
 
 const char *platform_asset_path(const char *rel, char *buf, size_t size)

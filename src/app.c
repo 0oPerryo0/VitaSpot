@@ -6,6 +6,7 @@
 #include "gfx/images.h"
 #include "gfx/text.h"
 #include "platform/platform.h"
+#include "power.h"
 #include "theme.h"
 
 app A;
@@ -439,6 +440,8 @@ void app_handle_sdl_event(const SDL_Event *e)
         A.quit = true;
         return;
     }
+    if (power_handle_event(e))
+        return;
     if (A.typing && e->type == SDL_TEXTINPUT) {
         if (platform_is_vita()) {
             /* The IME returns the whole edited string at once. */
@@ -549,6 +552,7 @@ bool app_init(SDL_Window *w, SDL_Renderer *r)
     A.np_color = rgb(0x404040);
     reset_stacks();
     load_recent();
+    power_init();
 
     vam_config cfg;
     memset(&cfg, 0, sizeof(cfg));
@@ -669,6 +673,8 @@ static void draw_main(void)
     ui_set_enabled(true);
 }
 
+bool app_drawing(void) { return !(platform_is_vita() && power_screen() == SCREEN_OFF); }
+
 void app_frame(float dt)
 {
     A.dt = dt;
@@ -689,6 +695,13 @@ void app_frame(float dt)
         run_search(A.edit, false);
     }
 
+    power_frame();
+    if (!app_drawing()) {
+        /* Screen off: keep playback and backend events going, draw nothing. */
+        platform_frame(app_is_playing());
+        return;
+    }
+
     images_update();
     text_begin_frame();
     gfx_clear(rgb(C_BG));
@@ -702,6 +715,9 @@ void app_frame(float dt)
         draw_main();
     }
     draw_toast();
+    /* Desktop has no backlight: shade the window instead. */
+    if (!platform_is_vita() && power_screen() != SCREEN_ON)
+        gfx_rect(rect(0, 0, SCREEN_W, SCREEN_H), rgba(0x000000, power_screen() == SCREEN_OFF ? 255 : 150));
     apply_nav();
     platform_frame(app_is_playing());
 }

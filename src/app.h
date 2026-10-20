@@ -101,6 +101,8 @@ bool app_init(SDL_Window *w, SDL_Renderer *r);
 void app_shutdown(void);
 void app_handle_sdl_event(const SDL_Event *e);
 void app_frame(float dt);
+/* False while the Vita's screen is off: the frame drew nothing to present. */
+bool app_drawing(void);
 
 view *app_view(void);
 int app_depth(void);

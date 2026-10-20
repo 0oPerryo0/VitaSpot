@@ -111,8 +111,12 @@ int main(int argc, char *argv[])
         ui_end_frame();
         devscript_after_render(ren);
         Uint64 t_drawn = SDL_GetPerformanceCounter();
-        SDL_RenderPresent(ren);
-        gfx_flush_destroyed(false);
+        if (app_drawing()) {
+            SDL_RenderPresent(ren);
+            gfx_flush_destroyed(false);
+        } else {
+            SDL_Delay(50); /* no vsync to pace the loop while the screen is off */
+        }
         Uint64 t_end = SDL_GetPerformanceCounter();
         note_frame(&sf, ms_between(t0, now, freq), ms_between(now, t_drawn, freq),
                    ms_between(t_drawn, t_end, freq));

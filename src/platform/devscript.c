@@ -6,6 +6,7 @@
  * One command per line:
  *   wait <ms>           let the app run
  *   key <name>          press+release a key (SDL key name: Down, Return, ...)
+ *   keydown <name>      press and hold a key (for combos), until keyup <name>
  *   text <string>       type text (when a text field is active)
  *   click <x> <y>       left click in 960x544 logical coordinates
  *   drag <x0> <y0> <x1> <y1>
@@ -151,6 +152,8 @@ bool devscript_frame(bool *quit)
     int a, b, c, d;
     if (sscanf(l, "wait %d", &a) == 1) {
         g_wait_until = now + (Uint64)a;
+    } else if (sscanf(l, "keydown %479s", arg) == 1 || sscanf(l, "keyup %479s", arg) == 1) {
+        push_key(SDL_GetKeyFromName(arg), l[3] == 'd');
     } else if (sscanf(l, "key %479s", arg) == 1) {
         SDL_Keycode k = SDL_GetKeyFromName(arg);
         if (k == SDLK_UNKNOWN)

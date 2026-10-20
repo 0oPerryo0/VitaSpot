@@ -1,13 +1,16 @@
 #ifdef __vita__
 
 #include "platform.h"
+#include "vam_backend.h"
 
 #include <psp2/apputil.h>
+#include <psp2/avconfig.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/power.h>
+#include <psp2/registrymgr.h>
 #include <psp2/system_param.h>
 #include <stdio.h>
 #include <string.h>
@@ -59,12 +62,69 @@ void platform_shutdown(void)
 
 void platform_frame(bool keep_awake)
 {
-    /* Screen may still dim/turn off, but the system will not suspend us. */
+    /* The app dims and turns off the screen itself (power.c). */
+    sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_OLED_DIMMING);
     if (keep_awake)
         sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 }
 
 bool platform_is_vita(void) { return true; }
+
+static screen_level g_screen = SCREEN_ON;
+
+/* The brightness the user set in Settings. Setting the backlight doesn't
+   change it, so the full level can always be restored from here. */
+static int user_brightness(void)
+{
+    int v = 0;
+    if (sceRegMgrGetKeyInt("/CONFIG/DISPLAY", "brightness", &v) < 0 || v < 21)
+        return 0;
+    return v;
+}
+
+/* Only the backlight changes. scePowerRequestDisplayOff() also silenced the
+   app's audio, which is the whole point of turning the screen off. */
+void platform_set_screen(screen_level level)
+{
+    if (level == g_screen)
+        return;
+    int full = user_brightness();
+    int on = 0, rc;
+    if (level == SCREEN_OFF) {
+        rc = sceAVConfigSetDisplayBrightness(0); /* 0 turns the screen off */
+    } else {
+        /* Brightness 0 powers the panel down; a new level alone doesn't
+           bring it back. */
+        if (g_screen == SCREEN_OFF)
+            on = scePowerRequestDisplayOn();
+        int target = !full ? 65536 : level == SCREEN_DIM ? (full / 4 < 21 ? 21 : full / 4) : full;
+        rc = sceAVConfigSetDisplayBrightness(target);
+    }
+    char msg[96];
+    snprintf(msg, sizeof(msg), "display level %d (from %d): brightness rc %#x, display on rc %#x, user %d", level,
+             g_screen, rc, on, full);
+    vam_log(msg);
+    g_screen = level;
+}
+
+const char *platform_btn_label(btn b)
+{
+    switch (b) {
+    case BTN_UP: return "Up";
+    case BTN_DOWN: return "Down";
+    case BTN_LEFT: return "Left";
+    case BTN_RIGHT: return "Right";
+    case BTN_CONFIRM: return g_swap_confirm ? "Circle" : "Cross";
+    case BTN_BACK: return g_swap_confirm ? "Cross" : "Circle";
+    case BTN_TRIANGLE: return "Triangle";
+    case BTN_SQUARE: return "Square";
+    case BTN_L: return "L";
+    case BTN_R: return "R";
+    case BTN_START: return "Start";
+    case BTN_SELECT: return "Select";
+    default: return "?";
+    }
+}
 
 void platform_lower_thread_priority(void)
 {

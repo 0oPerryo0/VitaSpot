@@ -19,6 +19,7 @@ set(FRONTEND_SOURCES
     src/main.c
     src/app.c
     src/model.c
+    src/power.c
     src/gfx/gfx.c
     src/gfx/text.c
     src/gfx/images.c
@@ -77,7 +78,7 @@ if(VITA)
         SceDisplay_stub SceCtrl_stub SceAudio_stub SceAudioIn_stub SceSysmodule_stub
         SceGxm_stub SceCommonDialog_stub SceAppMgr_stub SceAppUtil_stub SceTouch_stub
         SceHid_stub SceMotion_stub ScePower_stub SceProcessmgr_stub SceKernelDmacMgr_stub
-        SceIme_stub SceAVConfig_stub pthread m
+        SceIme_stub SceAVConfig_stub SceRegistryMgr_stub pthread m
     )
 
     vita_create_self(eboot.bin VitaSpot UNSAFE)

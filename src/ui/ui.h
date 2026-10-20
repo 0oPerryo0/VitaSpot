@@ -54,6 +54,17 @@ bool ui_enabled(void);
 bool ui_btn(btn b);
 void ui_consume(btn b);
 
+/* A two-button combo (BTN_COUNT = none). A press of either button waits
+ * briefly for the other before acting on its own, so the combo doesn't also
+ * trigger them. ui_combo_fired() is true for the frame the combo lands. */
+void ui_set_combo(btn a, btn b);
+bool ui_combo_fired(void);
+/* Rebinding the combo: while capturing, buttons do nothing, and the first two
+ * held together are handed out once by ui_captured_combo(). */
+void ui_capture_combo(bool on);
+bool ui_capturing_combo(void);
+bool ui_captured_combo(btn *a, btn *b);
+
 /* Pointer clip for hit testing (matches drawing clip). */
 void ui_push_clip(rectf r);
 void ui_pop_clip(void);

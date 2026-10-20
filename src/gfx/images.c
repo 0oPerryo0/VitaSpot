@@ -134,6 +134,25 @@ void images_shutdown(void)
     IMG_Quit();
 }
 
+/* Every image slot is square, so keep the centred square of a wider or
+   taller picture, the way Spotify crops profile photos, instead of letting
+   the draw squash it. */
+static SDL_Surface *crop_square(SDL_Surface *s)
+{
+    int n = s->w < s->h ? s->w : s->h;
+    if (s->w == s->h)
+        return s;
+    SDL_Surface *d = SDL_CreateRGBSurfaceWithFormat(0, n, n, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!d)
+        return s;
+    for (int y = 0; y < n; y++) {
+        const Uint8 *src = (const Uint8 *)s->pixels + (y + (s->h - n) / 2) * s->pitch + (s->w - n) / 2 * 4;
+        memcpy((Uint8 *)d->pixels + y * d->pitch, src, (size_t)n * 4);
+    }
+    SDL_FreeSurface(s);
+    return d;
+}
+
 static SDL_Surface *downscale_half(SDL_Surface *s)
 {
     int w = s->w / 2, h = s->h / 2;
@@ -226,6 +245,7 @@ static SDL_Surface *decode_surface(const uint8_t *data, uint32_t size, color *av
     SDL_FreeSurface(raw);
     if (!s)
         return NULL;
+    s = crop_square(s);
     while (s->w > MAX_DIM * 2 - 40 && s->h > MAX_DIM * 2 - 40)
         s = downscale_half(s);
     *avg = dominant(s);

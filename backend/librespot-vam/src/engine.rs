@@ -15,7 +15,7 @@ use librespot_core::{
 };
 use librespot_discovery::Discovery;
 use librespot_playback::{
-    config::{Bitrate, PlayerConfig, VolumeCtrl},
+    config::{Bitrate, NormalisationMethod, PlayerConfig, VolumeCtrl},
     mixer::{softmixer::SoftMixer, Mixer, MixerConfig},
     player::{Player, PlayerEvent, PlayerEventChannel},
 };
@@ -1223,8 +1223,10 @@ impl Engine {
                 _ => Bitrate::Bitrate160,
             },
             normalisation: config.normalize_volume,
-            // The ARM CPU is slow; skip dithering and use the cheaper basic
-            // normalisation only when the UI asked for normalisation.
+            // The ARM CPU is slow: skip dithering, and normalise with Basic
+            // (one gain per track, capped by the track's peak) rather than
+            // the default Dynamic limiter, which works on every sample.
+            normalisation_method: NormalisationMethod::Basic,
             ditherer: None,
             ..PlayerConfig::default()
         };

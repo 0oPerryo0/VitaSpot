@@ -555,10 +555,11 @@ bool app_init(SDL_Window *w, SDL_Renderer *r)
     cfg.device_name = platform_is_vita() ? "PS Vita" : "VitaSpot Desktop";
     cfg.data_dir = platform_data_dir();
     cfg.bitrate = platform_is_vita() ? 320 : 160;
-    /* The Vita's speaker is weak: start at full volume and skip loudness
-       normalisation, which turns most tracks down by several dB. */
+    /* The Vita ignores initial_volume and starts at the system volume.
+       Normalisation turns loud masters down by their ReplayGain; without it
+       full-scale tracks clip the Vita's speaker above ~80% volume. */
     cfg.initial_volume = platform_is_vita() ? 65535 : 52000;
-    cfg.normalize_volume = platform_is_vita() ? 0 : 1;
+    cfg.normalize_volume = 1;
     vam_result res = vam_init(&cfg);
     if (res != VAM_OK)
         SDL_Log("vam_init failed: %d", res);

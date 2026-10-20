@@ -31,6 +31,11 @@ pub trait Sink {
         Ok(())
     }
     fn write(&mut self, packet: AudioPacket, converter: &mut Converter) -> SinkResult<()>;
+    /// VitaSpot: drop audio written but not played yet, called after a seek.
+    /// Sinks without a buffer of their own keep this no-op.
+    fn flush(&mut self) -> SinkResult<()> {
+        Ok(())
+    }
 }
 
 pub type SinkBuilder = fn(Option<String>, AudioFormat) -> Box<dyn Sink>;

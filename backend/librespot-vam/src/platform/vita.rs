@@ -309,6 +309,8 @@ pub fn init_logging(data_dir: &str) {
 struct RingState {
     bytes: VecDeque<u8>,
     closed: bool,
+    /// Emptied by a seek: running dry next is not an underrun.
+    flushed: bool,
 }
 
 struct VitaSink {
@@ -323,7 +325,10 @@ impl VitaSink {
     fn new(format: AudioFormat) -> Self {
         VitaSink {
             format,
-            ring: Arc::new((Mutex::new(RingState { bytes: VecDeque::new(), closed: false }), Condvar::new())),
+            ring: Arc::new((
+                Mutex::new(RingState { bytes: VecDeque::new(), closed: false, flushed: false }),
+                Condvar::new(),
+            )),
             stop: Arc::new(AtomicBool::new(false)),
             thread: None,
             port: -1,
@@ -438,6 +443,16 @@ impl Sink for VitaSink {
         }
         Ok(())
     }
+
+    /// After a seek: drop the up to 1 s of old audio still in the ring.
+    fn flush(&mut self) -> SinkResult<()> {
+        let (lock, condvar) = &*self.ring;
+        let mut ring = lock.lock().unwrap_or_else(|e| e.into_inner());
+        ring.bytes.clear();
+        ring.flushed = true;
+        condvar.notify_all();
+        Ok(())
+    }
 }
 
 fn audio_thread(port: c_int, ring: Arc<(Mutex<RingState>, Condvar)>, stop: Arc<AtomicBool>) {
@@ -455,6 +470,10 @@ fn audio_thread(port: c_int, ring: Arc<(Mutex<RingState>, Condvar)>, stop: Arc<A
         {
             let (lock, condvar) = &*ring;
             let mut guard = lock.lock().unwrap_or_else(|e| e.into_inner());
+            if guard.flushed {
+                guard.flushed = false;
+                started = false;
+            }
             if started && guard.bytes.len() < need && !guard.closed {
                 underruns += 1;
                 if underruns.is_power_of_two() {

@@ -205,6 +205,44 @@ void screen_sidebar(void)
     }
 }
 
+/* Text wider than max_w scrolls sideways: it rests at the start, scrolls
+   left while a second copy follows it in, then rests again. Each id starts
+   over from the left when its text changes. */
+#define MARQUEE_PAUSE 2.0f  /* seconds at rest */
+#define MARQUEE_SPEED 30.0f /* px per second */
+#define MARQUEE_GAP 56.0f   /* px between the copies */
+
+static void marquee_text(uint32_t id, const char *s, float x, float y, int size, font_weight w, color c,
+                         float max_w)
+{
+    int tw = text_width(s, size, w, 0);
+    if (tw <= max_w) {
+        text_draw(s, x, y, size, w, c, 0);
+        return;
+    }
+    static struct { uint32_t id; char text[VAM_TEXT_MAX]; float start; } slots[4];
+    int slot = 0;
+    for (int i = 0; i < 4; i++) {
+        if (slots[i].id == id || !slots[i].id) {
+            slot = i;
+            break;
+        }
+    }
+    if (slots[slot].id != id || strcmp(slots[slot].text, s) != 0) {
+        slots[slot].id = id;
+        snprintf(slots[slot].text, sizeof(slots[slot].text), "%s", s);
+        slots[slot].start = A.time;
+    }
+    float span = tw + MARQUEE_GAP;
+    float t = fmodf(A.time - slots[slot].start, MARQUEE_PAUSE + span / MARQUEE_SPEED);
+    float off = t < MARQUEE_PAUSE ? 0 : (t - MARQUEE_PAUSE) * MARQUEE_SPEED;
+    gfx_push_clip(rect(x, y - 4, max_w, text_line_height(size) + 8));
+    text_draw(s, x - off, y, size, w, c, 0);
+    if (off > 0)
+        text_draw(s, x - off + span, y, size, w, c, 0);
+    gfx_pop_clip();
+}
+
 void screen_player_bar(void)
 {
     float y = SCREEN_H - PLAYER_H;
@@ -222,7 +260,7 @@ void screen_player_bar(void)
     if (res.pressed || res.focused)
         gfx_rrect(left, 6, rgb(C_SURFACE_HI));
     draw_cover(t->image_url, rect(14, y + 16, 52, 52), 4, t->kind, t->title);
-    text_draw(t->title, 78, y + 20, FS_S, FW_BOLD, rgb(C_TEXT), 170);
+    marquee_text(ui_id("bar.title"), t->title, 78, y + 20, FS_S, FW_BOLD, rgb(C_TEXT), 170);
     text_draw(t->subtitle, 78, y + 44, FS_XS, FW_REGULAR, rgb(C_SUBTEXT), 170);
     if (res.focused)
         draw_focus_ring(left, 6);
@@ -292,7 +330,7 @@ void screen_now_playing(void)
 
     /* Track info */
     float x0 = 480, w = SCREEN_W - x0 - 56;
-    text_draw(tr->title, x0, oy + 150, FS_XXL, FW_BOLD, rgb(C_TEXT), w - 50);
+    marquee_text(ui_id("np.title"), tr->title, x0, oy + 150, FS_XXL, FW_BOLD, rgb(C_TEXT), w - 50);
     rectf artist_r = rect(x0, oy + 192, w - 50, 32);
     ui_res ar = ui_item(ui_id("np.artist"), artist_r, 0);
     text_draw(tr->subtitle, x0, oy + 196, FS_L, FW_REGULAR, rgb(ar.pressed ? C_TEXT : C_SUBTEXT), w - 50);

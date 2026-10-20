@@ -510,7 +510,10 @@ static void put16(uint8_t *p, uint16_t v) { p[0] = v; p[1] = v >> 8; }
 
 static uint8_t *make_image(const char *url, uint32_t *size)
 {
-    const int W = 160, H = 160;
+    /* Profile pictures ("u") are wide with a round dot in the middle, so a
+       stretched draw shows as an oval. */
+    bool profile = strncmp(url, "mock://img/u", 12) == 0;
+    const int W = profile ? 240 : 160, H = 160;
     uint32_t seed = 2166136261u;
     for (const char *c = url; *c; c++) seed = (seed ^ (uint8_t)*c) * 16777619u;
     uint8_t c1[3] = { (uint8_t)(seed), (uint8_t)(seed >> 8), (uint8_t)(seed >> 16) };
@@ -537,6 +540,7 @@ static uint8_t *make_image(const char *url, uint32_t *size)
             for (int k = 0; k < 3; k++) {
                 float v = c1[k] * (1 - t) + c2[k] * t;
                 if (ring) v = v * 0.8f + 40;
+                if (profile && (x - W / 2) * (x - W / 2) + (y - H / 2) * (y - H / 2) < 40 * 40) v = 245;
                 px[2 - k] = (uint8_t)(v > 255 ? 255 : v);
             }
         }
@@ -646,6 +650,8 @@ static void tick_auth(void)
         g_auth.is_premium = !g_free;
         cpy(g_auth.username, sizeof(g_auth.username), "mockuser");
         cpy(g_auth.display_name, sizeof(g_auth.display_name), "Mock User");
+        /* Wide on purpose: profile photos needn't be square. */
+        img_url(g_auth.image_url, 'u', 0);
         g_auth.message[0] = 0;
         break;
     }

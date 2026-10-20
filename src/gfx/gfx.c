@@ -437,22 +437,15 @@ void gfx_shadow(rectf r, float radius, float spread, uint8_t alpha)
     }
 }
 
-void gfx_image(SDL_Texture *tex, rectf r, float radius, uint8_t alpha)
+void gfx_image(SDL_Texture *tex, rectf r, uint8_t alpha)
 {
     if (!tex || alpha == 0 || culled(r.x, r.y, r.w, r.h))
         return;
+    /* Textured fans (rounded rects, circles) made pictures blink out for
+       single frames on the Vita; a plain quad doesn't. */
     SDL_SetTextureAlphaMod(tex, alpha);
-    float half = (r.w < r.h ? r.w : r.h) * 0.5f;
-    if (radius < half - 0.01f) {
-        /* A textured rounded-rect fan made cover art blink out for single
-           frames on the Vita (Home only, every scroll); a plain quad doesn't. */
-        SDL_FRect d = { r.x, r.y, r.w, r.h };
-        SDL_RenderCopyF(g_r, tex, NULL, &d);
-        SDL_SetTextureAlphaMod(tex, 255);
-        return;
-    }
-    circle_path(r.x + r.w / 2, r.y + r.h / 2, half, 48);
-    fill_fan(48, r.x + r.w / 2, r.y + r.h / 2, rgb(0xFFFFFF), tex, r);
+    SDL_FRect d = { r.x, r.y, r.w, r.h };
+    SDL_RenderCopyF(g_r, tex, NULL, &d);
     SDL_SetTextureAlphaMod(tex, 255);
 }
 
@@ -619,6 +612,17 @@ void gfx_icon(icon_id id, float cx, float cy, float size, color c)
         gfx_circle(GX(g, 7), GY(g, 12), 1.6f * g.u, c);
         gfx_circle(GX(g, 17), GY(g, 12), 1.6f * g.u, c);
         break;
+    case ICON_SETTINGS:
+    case ICON_SETTINGS_BOLD: {
+        /* Gear: a ring with eight teeth. */
+        float t = id == ICON_SETTINGS_BOLD ? 2.8f : 2.0f;
+        gfx_arc(GX(g, 12), GY(g, 12), 6 * g.u, t * g.u, 0, (float)(2 * M_PI), c);
+        for (int i = 0; i < 8; i++) {
+            float a = i * (float)M_PI / 4, ca = cosf(a), sa = sinf(a);
+            gl(g, 12 + ca * 6.5f, 12 + sa * 6.5f, 12 + ca * 10, 12 + sa * 10, 3.2f, c);
+        }
+        break;
+    }
     }
 }
 

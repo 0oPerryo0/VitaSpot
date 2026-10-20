@@ -15,7 +15,10 @@ void images_update(void);
 /* Textures created by the last images_update, for diagnostics. */
 int images_uploads_this_frame(void);
 
+/* Cover art: square with slightly rounded corners baked in. */
 SDL_Texture *images_get(const char *url, color *avg);
+/* The same picture cut to a circle (artists, profile pictures). */
+SDL_Texture *images_get_round(const char *url, color *avg);
 
 /* Returns true if the event was an image reply this module consumed. */
 bool images_on_event(const vam_event *ev);

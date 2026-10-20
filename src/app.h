@@ -12,12 +12,13 @@
 #define TAB_HOME 0
 #define TAB_SEARCH 1
 #define TAB_LIBRARY 2
-#define TAB_COUNT 3
+#define TAB_SETTINGS 3
+#define TAB_COUNT 4
 #define MAX_DEPTH 12
 #define MAX_SHELVES 16
 #define RECENT_SEARCHES 8
 
-typedef enum view_type { VIEW_HOME, VIEW_SEARCH, VIEW_LIBRARY, VIEW_PAGE } view_type;
+typedef enum view_type { VIEW_HOME, VIEW_SEARCH, VIEW_LIBRARY, VIEW_SETTINGS, VIEW_PAGE } view_type;
 
 typedef enum lib_filter { LIB_ALL, LIB_PLAYLISTS, LIB_ALBUMS, LIB_ARTISTS, LIB_FILTER_COUNT } lib_filter;
 
@@ -158,6 +159,7 @@ bool draw_slider(uint32_t id, rectf track, float *frac, float display_frac, floa
 void screen_home(view *v);
 void screen_search(view *v);
 void screen_library(view *v);
+void screen_settings(view *v);
 void screen_page(view *v);
 void screen_sidebar(void);
 void screen_player_bar(void);

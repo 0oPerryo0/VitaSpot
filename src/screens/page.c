@@ -157,7 +157,11 @@ void screen_page(view *v)
     }
 
     color avg = rgb(0x535353);
-    images_get(p->image_url, &avg);
+    /* The artist header draws its picture round: share that texture. */
+    if (p->kind == VAM_KIND_ARTIST)
+        images_get_round(p->image_url, &avg);
+    else
+        images_get(p->image_url, &avg);
     bool queue = p->kind == VAM_KIND_QUEUE;
     if (p->kind == VAM_KIND_COLLECTION && !p->image_url[0])
         avg = color_scale(rgb(C_LIKED_TOP), 0.8f);

@@ -30,6 +30,7 @@ set(FRONTEND_SOURCES
     src/screens/player.c
     src/screens/sheet.c
     src/screens/login.c
+    src/screens/settings.c
 )
 
 if(VITA)

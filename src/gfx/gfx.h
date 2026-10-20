@@ -70,7 +70,9 @@ typedef enum icon_id {
     ICON_CHECK,
     ICON_CLOSE,
     ICON_VOLUME,
-    ICON_DEVICE
+    ICON_DEVICE,
+    ICON_SETTINGS,
+    ICON_SETTINGS_BOLD
 } icon_id;
 
 void gfx_init(SDL_Renderer *renderer);
@@ -100,10 +102,9 @@ void gfx_vgradient(rectf r, color top, color bottom);
 void gfx_hgradient(rectf r, color left, color right);
 /* Soft drop shadow behind r. */
 void gfx_shadow(rectf r, float radius, float spread, uint8_t alpha);
-/* Draw a texture into r. radius >= half size crops it to a circle; any smaller
-   radius draws it square, so rounded corners must be baked into its alpha
-   (images.c does this for cover art). */
-void gfx_image(SDL_Texture *tex, rectf r, float radius, uint8_t alpha);
+/* Draw a texture into r as a plain quad. Rounded corners or a circle must be
+   baked into its alpha (images.c does this). */
+void gfx_image(SDL_Texture *tex, rectf r, uint8_t alpha);
 /* Icon drawn in a size x size box centred on (cx, cy). */
 void gfx_icon(icon_id id, float cx, float cy, float size, color c);
 /* Animated "now playing" bars. */

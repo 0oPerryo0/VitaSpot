@@ -215,7 +215,7 @@ impl Engine {
 
         // Auto-login with stored credentials, otherwise advertise over
         // Zeroconf and wait for the phone app to send credentials.
-        let stored = engine.cache.as_ref().and_then(|c| c.credentials());
+        let stored = engine.stored_credentials();
         match stored {
             Some(credentials) => {
                 engine.last_credentials_marker = Some(marker(&credentials));
@@ -1102,7 +1102,7 @@ impl Engine {
                 let credentials = self
                     .credentials
                     .clone()
-                    .or_else(|| self.cache.as_ref().and_then(|c| c.credentials()));
+                    .or_else(|| self.stored_credentials());
                 if let Some(credentials) = credentials {
                     self.last_credentials_marker = Some(marker(&credentials));
                     if let Err(why) = self.login(credentials).await {
@@ -1126,7 +1126,7 @@ impl Engine {
             }
 
             // Fallback login: a credentials.json copied onto the device.
-            let pending = self.cache.as_ref().and_then(|cache| cache.credentials());
+            let pending = self.stored_credentials();
             if let Some(credentials) = pending {
                 let credentials_marker = marker(&credentials);
                 if self.last_credentials_marker.as_deref() != Some(credentials_marker.as_str()) {
@@ -1331,9 +1331,24 @@ impl Engine {
         Ok(())
     }
 
+    /// The saved login, or None while credentials.json is missing or blank.
+    /// Log out leaves the file blank, and librespot's cache would log a
+    /// parse error for it on every poll of the login screen.
+    fn stored_credentials(&self) -> Option<Credentials> {
+        let path = self.backend.config.credentials_path();
+        match std::fs::read_to_string(&path) {
+            Ok(text) if !text.trim().is_empty() => self.cache.as_ref().and_then(|c| c.credentials()),
+            _ => None,
+        }
+    }
+
     async fn logout(&mut self) {
         self.teardown().await;
-        let _ = std::fs::remove_file(self.backend.config.credentials_path());
+        // Blank the saved login rather than deleting it: the file stays where
+        // a replacement credentials.json is expected.
+        if let Err(why) = std::fs::write(self.backend.config.credentials_path(), b"") {
+            log::warn!("could not clear credentials.json: {why}");
+        }
         self.credentials = None;
         self.last_credentials_marker = None;
         self.reconnect_at = None;

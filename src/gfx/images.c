@@ -27,6 +27,7 @@ typedef struct img {
     SDL_Texture *tex;
     color avg;
     uint32_t used;
+    bool round;             /* circle baked into alpha (artists, profiles) */
 } img;
 
 /* JPEG/PNG decoding takes tens of ms on the Vita, so it runs on a worker
@@ -36,6 +37,7 @@ typedef struct job {
     uint32_t gen;
     uint8_t *data;
     uint32_t size;
+    bool round;
     SDL_Surface *surf;
     color avg;
 } job;
@@ -54,7 +56,7 @@ static int g_jobs;          /* submitted, result not yet taken (render thread on
 static uint32_t g_gen;
 static int g_uploads;
 
-static SDL_Surface *decode_surface(const uint8_t *data, uint32_t size, color *avg);
+static SDL_Surface *decode_surface(const uint8_t *data, uint32_t size, bool round, color *avg);
 
 static int decode_worker(void *arg)
 {
@@ -70,7 +72,7 @@ static int decode_worker(void *arg)
         memmove(g_todo, g_todo + 1, (size_t)(--g_todo_n) * sizeof(job));
         SDL_UnlockMutex(g_mu);
 
-        j.surf = decode_surface(j.data, j.size, &j.avg);
+        j.surf = decode_surface(j.data, j.size, j.round, &j.avg);
         free(j.data);
         j.data = NULL;
 
@@ -132,6 +134,25 @@ void images_shutdown(void)
         clear(&g_imgs[i]);
     g_in_flight = 0;
     IMG_Quit();
+}
+
+/* Every image slot is square, so keep the centred square of a wider or
+   taller picture, the way Spotify crops profile photos, instead of letting
+   the draw squash it. */
+static SDL_Surface *crop_square(SDL_Surface *s)
+{
+    int n = s->w < s->h ? s->w : s->h;
+    if (s->w == s->h)
+        return s;
+    SDL_Surface *d = SDL_CreateRGBSurfaceWithFormat(0, n, n, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!d)
+        return s;
+    for (int y = 0; y < n; y++) {
+        const Uint8 *src = (const Uint8 *)s->pixels + (y + (s->h - n) / 2) * s->pitch + (s->w - n) / 2 * 4;
+        memcpy((Uint8 *)d->pixels + y * d->pitch, src, (size_t)n * 4);
+    }
+    SDL_FreeSurface(s);
+    return d;
 }
 
 static SDL_Surface *downscale_half(SDL_Surface *s)
@@ -215,8 +236,29 @@ static void round_corners(SDL_Surface *s)
     }
 }
 
+/* Cut the square to a circle through alpha, antialiased. Like the corners,
+ * the circle is baked in because a textured circle fan blinks on the Vita. */
+static void round_circle(SDL_Surface *s)
+{
+    float rad = s->w * 0.5f;
+    for (int y = 0; y < s->h; y++) {
+        Uint32 *row = (Uint32 *)((Uint8 *)s->pixels + y * s->pitch);
+        float dy = y + 0.5f - rad;
+        for (int x = 0; x < s->w; x++) {
+            float dx = x + 0.5f - rad;
+            float cov = rad - sqrtf(dx * dx + dy * dy) + 0.5f;
+            if (cov >= 1)
+                continue;
+            if (cov < 0)
+                cov = 0;
+            Uint32 a = (Uint32)(((row[x] >> 24) & 0xFF) * cov);
+            row[x] = (row[x] & 0x00FFFFFF) | (a << 24);
+        }
+    }
+}
+
 /* Thread-safe: touches no renderer state. */
-static SDL_Surface *decode_surface(const uint8_t *data, uint32_t size, color *avg)
+static SDL_Surface *decode_surface(const uint8_t *data, uint32_t size, bool round, color *avg)
 {
     SDL_RWops *rw = SDL_RWFromConstMem(data, (int)size);
     SDL_Surface *raw = rw ? IMG_Load_RW(rw, 1) : NULL;
@@ -226,10 +268,14 @@ static SDL_Surface *decode_surface(const uint8_t *data, uint32_t size, color *av
     SDL_FreeSurface(raw);
     if (!s)
         return NULL;
+    s = crop_square(s);
     while (s->w > MAX_DIM * 2 - 40 && s->h > MAX_DIM * 2 - 40)
         s = downscale_half(s);
     *avg = dominant(s);
-    round_corners(s);
+    if (round)
+        round_circle(s);
+    else
+        round_corners(s);
     return s;
 }
 
@@ -293,7 +339,7 @@ void images_update(void)
             continue;
         if (!g_thread) {
             color avg = { 0, 0, 0, 255 };
-            SDL_Surface *s = decode_surface(m->data, m->size, &avg);
+            SDL_Surface *s = decode_surface(m->data, m->size, m->round, &avg);
             free(m->data);
             m->data = NULL;
             m->size = 0;
@@ -302,7 +348,7 @@ void images_update(void)
         }
         if (g_jobs >= JOB_N)
             break;
-        job j = { i, ++g_gen, m->data, m->size, NULL, { 0, 0, 0, 255 } };
+        job j = { i, ++g_gen, m->data, m->size, m->round, NULL, { 0, 0, 0, 255 } };
         m->data = NULL;
         m->size = 0;
         m->gen = j.gen;
@@ -340,7 +386,7 @@ void images_update(void)
     }
 }
 
-SDL_Texture *images_get(const char *url, color *avg)
+static SDL_Texture *get(const char *url, bool round, color *avg)
 {
     if (!url || !*url)
         return NULL;
@@ -351,7 +397,7 @@ SDL_Texture *images_get(const char *url, color *avg)
             if (!slot) slot = m;
             continue;
         }
-        if (strcmp(m->url, url) == 0) {
+        if (m->round == round && strcmp(m->url, url) == 0) {
             m->used = g_frame;
             if (m->state == IS_READY) {
                 if (avg) *avg = m->avg;
@@ -372,10 +418,14 @@ SDL_Texture *images_get(const char *url, color *avg)
         slot = lru;
     }
     slot->url = SDL_strdup(url);
+    slot->round = round;
     slot->state = IS_WANTED;
     slot->used = g_frame;
     return NULL;
 }
+
+SDL_Texture *images_get(const char *url, color *avg) { return get(url, false, avg); }
+SDL_Texture *images_get_round(const char *url, color *avg) { return get(url, true, avg); }
 
 bool images_on_event(const vam_event *ev)
 {

@@ -42,7 +42,10 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use thiserror::Error;
-use tokio::{sync::mpsc, time::sleep};
+use tokio::{
+    sync::mpsc,
+    time::{sleep, sleep_until, Instant},
+};
 
 #[derive(Debug, Error)]
 enum SpircError {
@@ -101,9 +104,13 @@ struct SpircTask {
     /// is set when transferring, and used after resolving the contexts to finish the transfer
     pub transfer_state: Option<TransferState>,
 
-    /// when set to true, it will update the volume after [VOLUME_UPDATE_DELAY],
-    /// when no other future resolves, otherwise resets the delay
+    /// when set to true, it will update the volume at [Self::update_volume_due]
     update_volume: bool,
+    /// VitaSpot: [VOLUME_UPDATE_DELAY] after the first unsent volume change.
+    /// Upstream restarted the delay on every loop iteration, so a stream of
+    /// volume changes kept `update_volume` set, which blocks context resolving
+    /// (switching songs) until the stream stopped.
+    update_volume_due: Instant,
 
     /// when set to true, it will update the volume after [UPDATE_STATE_DELAY],
     /// when no other future resolves, otherwise resets the delay
@@ -271,6 +278,7 @@ impl Spirc {
 
             transfer_state: None,
             update_volume: false,
+            update_volume_due: Instant::now(),
             update_state: false,
 
             spirc_id,
@@ -551,7 +559,7 @@ impl SpircTask {
                         error!("state update: {why}")
                     }
                 },
-                _ = async { sleep(VOLUME_UPDATE_DELAY).await }, if self.update_volume => {
+                _ = sleep_until(self.update_volume_due), if self.update_volume => {
                     self.update_volume = false;
 
                     info!("delayed volume update for all devices: volume is now {}", self.connect_state.device_info().volume);
@@ -1860,6 +1868,9 @@ impl SpircTask {
         let old_volume = self.connect_state.device_info().volume;
         let new_volume = volume as u32;
         if old_volume != new_volume || self.mixer.volume() != volume {
+            if !self.update_volume {
+                self.update_volume_due = Instant::now() + VOLUME_UPDATE_DELAY;
+            }
             self.update_volume = true;
 
             self.connect_state.set_volume(new_volume);

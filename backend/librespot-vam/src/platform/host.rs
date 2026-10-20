@@ -44,3 +44,12 @@ pub fn shutdown_audio() {}
 
 /// Only the Vita needs explicit thread priorities.
 pub fn lower_current_thread_priority() {}
+
+/// Hosts keep Spotify's volume in software; there is no system volume to follow.
+pub fn system_volume_step() -> Option<u32> {
+    None
+}
+
+pub fn set_system_volume_step(_step: u32) -> bool {
+    false
+}

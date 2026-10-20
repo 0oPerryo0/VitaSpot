@@ -76,7 +76,7 @@ if(VITA)
         SceDisplay_stub SceCtrl_stub SceAudio_stub SceAudioIn_stub SceSysmodule_stub
         SceGxm_stub SceCommonDialog_stub SceAppMgr_stub SceAppUtil_stub SceTouch_stub
         SceHid_stub SceMotion_stub ScePower_stub SceProcessmgr_stub SceKernelDmacMgr_stub
-        SceIme_stub pthread m
+        SceIme_stub SceAVConfig_stub pthread m
     )
 
     vita_create_self(eboot.bin VitaSpot UNSAFE)

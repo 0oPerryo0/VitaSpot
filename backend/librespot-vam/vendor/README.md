@@ -86,6 +86,12 @@ Changes:
     tasks can hold a handle.
   * new `SpircCommand::AddToQueue` / `Spirc::add_to_queue()`; upstream only
     handled the remote `AddToQueue` push, with no local API for "add to queue".
+  * the delayed volume update fires `VOLUME_UPDATE_DELAY` after the first
+    unsent change (`update_volume_due`). Upstream restarted the delay on every
+    event loop iteration, so a steady stream of volume changes (holding the
+    Vita's volume buttons, dragging the slider) kept `update_volume` set,
+    and that blocks context resolving: tapping another song did nothing until
+    the volume stopped changing.
 
 Everything else (context resolving, transfer, dealer handling, shuffle/repeat)
 is untouched upstream code.

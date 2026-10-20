@@ -155,6 +155,11 @@ void power_frame(void)
         return;
     }
     g_capture_since = 0;
+    if (platform_take_wake()) {
+        /* The system already restored the backlight. */
+        g_level = SCREEN_ON;
+        g_last_input = now;
+    }
     if (ui_combo_fired()) {
         set_level(SCREEN_OFF);
         return;

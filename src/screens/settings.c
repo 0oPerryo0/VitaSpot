@@ -19,9 +19,9 @@ static float account_card(float x, float y, float w)
     gfx_rrect(card, 8, rgb(C_SURFACE));
 
     rectf pic = rect(card.x + 16, card.y + 16, 64, 64);
-    SDL_Texture *avatar = images_get(A.auth.image_url, NULL);
+    SDL_Texture *avatar = images_get_round(A.auth.image_url, NULL);
     if (avatar) {
-        gfx_image(avatar, pic, pic.w / 2, 255);
+        gfx_image(avatar, pic, 255);
     } else {
         gfx_circle(pic.x + 32, pic.y + 32, 32, rgb(C_SURFACE_HI2));
         gfx_icon(ICON_PERSON, pic.x + 32, pic.y + 32, 32, rgb(C_SUBTEXT));

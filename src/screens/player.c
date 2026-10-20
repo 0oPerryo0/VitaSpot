@@ -181,9 +181,9 @@ void screen_sidebar(void)
     /* The signed-in user's profile picture; until it loads (or without
        one), the app mark: a generic note glyph, not anyone's logo. */
     rectf mark = rect(SIDEBAR_W / 2.0f - 18, 16, 36, 36);
-    SDL_Texture *avatar = images_get(A.auth.image_url, NULL);
+    SDL_Texture *avatar = images_get_round(A.auth.image_url, NULL);
     if (avatar) {
-        gfx_image(avatar, mark, mark.w / 2, 255);
+        gfx_image(avatar, mark, 255);
     } else {
         gfx_rrect(mark, 10, rgb(C_ACCENT));
         gfx_icon(ICON_NOTE, SIDEBAR_W / 2.0f, 34, 24, rgb(0x000000));

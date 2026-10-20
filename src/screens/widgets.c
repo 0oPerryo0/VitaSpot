@@ -31,9 +31,10 @@ const char *kind_label(int kind)
 void draw_cover(const char *url, rectf r, float radius, int kind, const char *title)
 {
     (void)title;
-    SDL_Texture *t = images_get(url, NULL);
+    bool round = radius >= (r.w < r.h ? r.w : r.h) * 0.5f - 0.01f;
+    SDL_Texture *t = round ? images_get_round(url, NULL) : images_get(url, NULL);
     if (t) {
-        gfx_image(t, r, radius, 255);
+        gfx_image(t, r, 255);
         return;
     }
     float s = r.w < r.h ? r.w : r.h;

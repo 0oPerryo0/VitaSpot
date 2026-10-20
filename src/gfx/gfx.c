@@ -437,22 +437,15 @@ void gfx_shadow(rectf r, float radius, float spread, uint8_t alpha)
     }
 }
 
-void gfx_image(SDL_Texture *tex, rectf r, float radius, uint8_t alpha)
+void gfx_image(SDL_Texture *tex, rectf r, uint8_t alpha)
 {
     if (!tex || alpha == 0 || culled(r.x, r.y, r.w, r.h))
         return;
+    /* Textured fans (rounded rects, circles) made pictures blink out for
+       single frames on the Vita; a plain quad doesn't. */
     SDL_SetTextureAlphaMod(tex, alpha);
-    float half = (r.w < r.h ? r.w : r.h) * 0.5f;
-    if (radius < half - 0.01f) {
-        /* A textured rounded-rect fan made cover art blink out for single
-           frames on the Vita (Home only, every scroll); a plain quad doesn't. */
-        SDL_FRect d = { r.x, r.y, r.w, r.h };
-        SDL_RenderCopyF(g_r, tex, NULL, &d);
-        SDL_SetTextureAlphaMod(tex, 255);
-        return;
-    }
-    circle_path(r.x + r.w / 2, r.y + r.h / 2, half, 48);
-    fill_fan(48, r.x + r.w / 2, r.y + r.h / 2, rgb(0xFFFFFF), tex, r);
+    SDL_FRect d = { r.x, r.y, r.w, r.h };
+    SDL_RenderCopyF(g_r, tex, NULL, &d);
     SDL_SetTextureAlphaMod(tex, 255);
 }
 

@@ -672,14 +672,18 @@ struct PlayerLoadedTrackData {
     is_explicit: bool,
 }
 
+// `live_bitrate` is the `PlayerConfig::live_bitrate` value the preload was
+// started with, so a preload fetched before a quality change can be dropped.
 enum PlayerPreload {
     None,
     Loading {
         track_id: SpotifyUri,
+        live_bitrate: u32,
         loader: Pin<Box<dyn FusedFuture<Output = Result<PlayerLoadedTrackData, ()>> + Send>>,
     },
     Ready {
         track_id: SpotifyUri,
+        live_bitrate: u32,
         loaded_track: Box<PlayerLoadedTrackData>,
     },
 }
@@ -1007,7 +1011,18 @@ impl PlayerTrackLoader {
         );
 
         // (Most) podcasts seem to support only 96 kbps Ogg Vorbis, so fall back to it
-        let formats = match self.config.bitrate {
+        let bitrate = match self
+            .config
+            .live_bitrate
+            .as_ref()
+            .map(|b| b.load(Ordering::Relaxed))
+        {
+            Some(96) => Bitrate::Bitrate96,
+            Some(160) => Bitrate::Bitrate160,
+            Some(320) => Bitrate::Bitrate320,
+            _ => self.config.bitrate,
+        };
+        let formats = match bitrate {
             Bitrate::Bitrate96 => [
                 AudioFileFormat::OGG_VORBIS_96,
                 AudioFileFormat::MP3_96,
@@ -1396,6 +1411,7 @@ impl Future for PlayerInternal {
             if let PlayerPreload::Loading {
                 ref mut loader,
                 ref track_id,
+                live_bitrate,
             } = self.preload
             {
                 let track_id = track_id.clone();
@@ -1406,6 +1422,7 @@ impl Future for PlayerInternal {
                         });
                         self.preload = PlayerPreload::Ready {
                             track_id,
+                            live_bitrate,
                             loaded_track: Box::new(loaded_track),
                         };
                     }
@@ -1962,6 +1979,8 @@ impl PlayerInternal {
             self.ensure_sink_stopped(play);
         }
 
+        self.drop_stale_preload();
+
         if matches!(self.state, PlayerState::Invalid) {
             return Err(Error::internal(format!(
                 "Player::handle_command_load called from invalid state: {:?}",
@@ -2096,6 +2115,7 @@ impl PlayerInternal {
                 if let PlayerPreload::Ready {
                     track_id,
                     mut loaded_track,
+                    ..
                 } = preload
                 {
                     if position_ms != loaded_track.stream_position_ms {
@@ -2157,8 +2177,36 @@ impl PlayerInternal {
         Ok(())
     }
 
+    fn live_bitrate(&self) -> u32 {
+        self.config
+            .live_bitrate
+            .as_ref()
+            .map_or(0, |b| b.load(Ordering::Relaxed))
+    }
+
+    /// Forget a preload fetched at a quality the user has since changed, so
+    /// the new quality applies from the very next track.
+    fn drop_stale_preload(&mut self) {
+        let live_bitrate = self.live_bitrate();
+        if let PlayerPreload::Loading {
+            live_bitrate: preloaded,
+            ..
+        }
+        | PlayerPreload::Ready {
+            live_bitrate: preloaded,
+            ..
+        } = &self.preload
+        {
+            if *preloaded != live_bitrate {
+                debug!("Dropping preload fetched before the audio quality changed");
+                self.preload = PlayerPreload::None;
+            }
+        }
+    }
+
     fn handle_command_preload(&mut self, track_id: SpotifyUri) {
         debug!("Preloading track");
+        self.drop_stale_preload();
         let mut preload_track = true;
         // check whether the track is already loaded somewhere or being loaded.
         if let PlayerPreload::Loading {
@@ -2203,6 +2251,7 @@ impl PlayerInternal {
             let loader = self.load_track(track_id.clone(), 0);
             self.preload = PlayerPreload::Loading {
                 track_id,
+                live_bitrate: self.live_bitrate(),
                 loader: Box::pin(loader),
             }
         }

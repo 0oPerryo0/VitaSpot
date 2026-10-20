@@ -1,4 +1,10 @@
-use std::{mem, path::PathBuf, str::FromStr, time::Duration};
+use std::{
+    mem,
+    path::PathBuf,
+    str::FromStr,
+    sync::{atomic::AtomicU32, Arc},
+    time::Duration,
+};
 
 pub use crate::dither::{DithererBuilder, TriangularDitherer, mk_ditherer};
 use crate::{convert::i24, player::duration_to_coefficient};
@@ -104,6 +110,10 @@ impl FromStr for NormalisationMethod {
 #[derive(Clone)]
 pub struct PlayerConfig {
     pub bitrate: Bitrate,
+    /// Overrides `bitrate` for every track loaded after it changes: 96, 160
+    /// or 320 (kbps); anything else falls back to `bitrate`. Lets the quality
+    /// change without recreating the player.
+    pub live_bitrate: Option<Arc<AtomicU32>>,
     pub gapless: bool,
     pub passthrough: bool,
 
@@ -130,6 +140,7 @@ impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
             bitrate: Bitrate::default(),
+            live_bitrate: None,
             gapless: true,
             normalisation: false,
             normalisation_type: NormalisationType::default(),

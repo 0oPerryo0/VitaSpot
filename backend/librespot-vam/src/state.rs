@@ -162,6 +162,8 @@ pub struct Backend {
     pub commands: Mutex<Option<UnboundedSender<Command>>>,
     pub runtime_thread: Mutex<Option<JoinHandle<()>>>,
     pub shutdown: AtomicBool,
+    /// Streaming quality in kbps, read by the player for each new track.
+    pub bitrate: Arc<AtomicU32>,
 }
 
 impl Backend {
@@ -174,6 +176,7 @@ impl Backend {
         player.volume = config.initial_volume;
         player.is_active_device = 1;
 
+        let bitrate = Arc::new(AtomicU32::new(config.bitrate as u32));
         Arc::new(Backend {
             config,
             events: EventQueue::default(),
@@ -183,6 +186,7 @@ impl Backend {
             commands: Mutex::new(None),
             runtime_thread: Mutex::new(None),
             shutdown: AtomicBool::new(false),
+            bitrate,
         })
     }
 

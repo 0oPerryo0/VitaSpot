@@ -314,4 +314,7 @@ void screen_now_playing(void)
         gfx_icon(ICON_DEVICE, x0 + 10, oy + 462, 20, rgb(C_ACCENT));
         text_draw_vc("Playing on another device", x0 + 30, oy + 462, FS_S, FW_BOLD, rgb(C_ACCENT), w);
     }
+
+    text_draw_aligned("VitaSpot is an unofficial Spotify client.", SCREEN_W / 2.0f, oy + SCREEN_H - 28, FS_XS,
+                      FW_REGULAR, rgb(C_MUTED), SCREEN_W - 40, ALIGN_CENTER);
 }

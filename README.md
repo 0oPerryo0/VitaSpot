@@ -16,7 +16,9 @@ own branding. **Spotify Premium is required.**
 |---|---|
 | ![Playlist](docs/screenshots/playlist.png) | ![Artist](docs/screenshots/artist.png) |
 
-![Now Playing](docs/screenshots/player.png)
+| Now Playing | Lyrics |
+|---|---|
+| ![Now Playing](docs/screenshots/player.png) | ![Now Playing with lyrics](docs/screenshots/player_lyrics.png) |
 
 ## Features
 

@@ -278,9 +278,6 @@ librespot-discovery, librespot-oauth, librespot-playback, rustix, if-addrs, temp
 * **Memory/CPU**: the release VPK's `eboot.bin` is ~11 MB, much of it Rust
   std/librespot code. Resident memory is expected to be dominated by decoding
   buffers and TLS state, but it was not measured on a Vita.
-* **Lyrics** use the same color-lyrics request the official clients make, but
-  have not been fetched from Spotify's servers yet; if the endpoint wants
-  headers librespot doesn't send, every song shows the grey lyrics button.
 * Podcasts (`spotify:show:`) return `VAM_ERR_UNSUPPORTED`; the frontend has no
   podcast UI yet.
 * `vam_login_url` / `vam_login_code` are left empty (no OAuth web flow).

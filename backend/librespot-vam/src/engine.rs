@@ -673,6 +673,11 @@ impl Engine {
             state.playback = VAM_PLAYBACK_BUFFERING;
             state.position_ms = 0;
             state.position_timestamp_ms = now_ms_inner();
+            // A new context drops the old "playing from" title; a single
+            // song (from search) has none.
+            if !state_uri_is(&state.context_uri, &context) {
+                state.context_title = [0; VAM_TEXT_MAX];
+            }
             copy_str(&mut state.context_uri, &context);
             state.seq = state.seq.wrapping_add(1);
         });
@@ -722,6 +727,9 @@ impl Engine {
                 if let Some(spirc) = &self.spirc {
                     let snapshot = spirc.snapshot();
                     self.shared.update_player(|meta| {
+                        if meta.context_uri != snapshot.context_uri {
+                            meta.context_title.clear();
+                        }
                         meta.context_uri = snapshot.context_uri.clone();
                         if meta.context_title.is_empty() {
                             meta.context_title = context_title_from(&snapshot);
@@ -850,11 +858,16 @@ impl Engine {
         let current = self.backend.player_snapshot();
         let mut next = current;
 
-        // Context.
+        // Context. A changed context never keeps the old title: until the
+        // new one is known (or forever, for a single song from search) there
+        // is none.
+        let context_changed = !state_uri_is(&next.context_uri, &snapshot.context_uri);
         copy_str(&mut next.context_uri, &snapshot.context_uri);
         let title = context_title_from(&snapshot);
         if !title.is_empty() {
             copy_str(&mut next.context_title, &title);
+        } else if context_changed {
+            next.context_title = [0; VAM_TEXT_MAX];
         }
 
         // Playback status.
@@ -895,9 +908,9 @@ impl Engine {
             if !snapshot.track_uri.is_empty() {
                 self.spawn_track_metadata(snapshot.track_uri.clone());
             }
-            if !snapshot.context_uri.is_empty() {
-                self.spawn_context_title(snapshot.context_uri.clone());
-            }
+        }
+        if track_changed || context_changed {
+            self.spawn_context_title(snapshot.context_uri.clone());
         }
         next.has_track = (!snapshot.track_uri.is_empty()) as u8;
         if next.track.duration_ms == 0 && snapshot.duration_ms > 0 {
@@ -920,6 +933,9 @@ impl Engine {
         self.backend.set_player(|state| *state = next);
         self.shared.update_player(|meta| {
             meta.track_uri = snapshot.track_uri.clone();
+            if meta.context_uri != snapshot.context_uri {
+                meta.context_title.clear();
+            }
             meta.context_uri = snapshot.context_uri.clone();
             if !snapshot.context_metadata.is_empty() {
                 let title = context_title_from(&snapshot);

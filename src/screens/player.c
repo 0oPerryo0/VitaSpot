@@ -16,7 +16,12 @@ static float clamp01(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
 bool draw_slider(uint32_t id, rectf track, float *frac, float display_frac, float step)
 {
-    rectf hit = rect(track.x - 8, track.y + track.h / 2 - 14, track.w + 16, 28);
+    /* Tall touch area around a thin bar; nothing below the screen edge. */
+    float hit_y = track.y + track.h / 2 - SLIDER_HIT_H / 2.0f;
+    float hit_h = SLIDER_HIT_H;
+    if (hit_y + hit_h > SCREEN_H)
+        hit_h = SCREEN_H - hit_y;
+    rectf hit = rect(track.x - 8, hit_y, track.w + 16, hit_h);
     ui_res res = ui_item(id, hit, UI_F_SLIDER);
     bool committed = false;
 
@@ -184,8 +189,8 @@ void screen_sidebar(void)
         color c = active ? rgb(C_TEXT) : rgb(res.pressed ? C_TEXT : C_SUBTEXT);
         if (res.focused)
             gfx_rrect(r, 8, rgb(C_SURFACE_HI));
-        gfx_icon(icons[i][active], r.x + r.w / 2, r.y + 24, 26, c);
-        text_draw_aligned(labels[i], r.x + r.w / 2, r.y + 42, FS_XS, active ? FW_BOLD : FW_REGULAR, c, r.w,
+        gfx_icon(icons[i][active], r.x + r.w / 2, r.y + 23, 26, c);
+        text_draw_aligned(labels[i], r.x + r.w / 2, r.y + 40, FS_XS, active ? FW_BOLD : FW_REGULAR, c, r.w,
                           ALIGN_CENTER);
         if (res.focused)
             draw_focus_ring(r, 8);
@@ -206,33 +211,34 @@ void screen_player_bar(void)
     const vam_item *t = &A.player.track;
 
     /* Left: art + title opens Now Playing. */
-    rectf left = rect(8, y + 6, 262, PLAYER_H - 12);
+    rectf left = rect(8, y + 8, 248, PLAYER_H - 16);
     ui_res res = ui_item(ui_id("bar.track"), left, 0);
     if (res.pressed || res.focused)
         gfx_rrect(left, 6, rgb(C_SURFACE_HI));
-    draw_cover(t->image_url, rect(14, y + 12, 44, 44), 4, t->kind, t->title);
-    text_draw(t->title, 70, y + 15, FS_S, FW_BOLD, rgb(C_TEXT), 190);
-    text_draw(t->subtitle, 70, y + 35, FS_XS, FW_REGULAR, rgb(C_SUBTEXT), 190);
+    draw_cover(t->image_url, rect(14, y + 16, 52, 52), 4, t->kind, t->title);
+    text_draw(t->title, 78, y + 20, FS_S, FW_BOLD, rgb(C_TEXT), 170);
+    text_draw(t->subtitle, 78, y + 44, FS_XS, FW_REGULAR, rgb(C_SUBTEXT), 170);
     if (res.focused)
         draw_focus_ring(left, 6);
     if (res.clicked)
         app_set_now_playing(true);
 
-    if (icon_button(ui_id("bar.like"), t->is_saved ? ICON_HEART : ICON_HEART_OUTLINE, 290, y + PLAYER_H / 2.0f,
-                    18, 36, t->is_saved ? rgb(C_ACCENT) : rgb(C_SUBTEXT)))
+    if (icon_button(ui_id("bar.like"), t->is_saved ? ICON_HEART : ICON_HEART_OUTLINE, 284, y + PLAYER_H / 2.0f,
+                    20, 48, t->is_saved ? rgb(C_ACCENT) : rgb(C_SUBTEXT)))
         app_toggle_saved(t->uri, t->is_saved);
 
     /* Centre: transport + seek. */
-    transport("bar", 500, y + 22, 40, 16, 18);
-    seek_slider(ui_id("bar.seek"), rect(380, y + 50, 240, 4), false, 0);
+    /* Transport hits end at y + 48, where the seek hit begins. */
+    transport("bar", 500, y + 24, 50, 18, 20);
+    seek_slider(ui_id("bar.seek"), rect(358, y + 68, 284, 4), false, 0);
 
     /* Right: device / queue / volume. */
     if (!A.player.is_active_device)
-        gfx_icon(ICON_DEVICE, 700, y + PLAYER_H / 2.0f, 20, rgb(C_ACCENT));
-    if (icon_button(ui_id("bar.queue"), ICON_QUEUE, 740, y + PLAYER_H / 2.0f, 18, 36, rgb(C_SUBTEXT)))
+        gfx_icon(ICON_DEVICE, 712, y + PLAYER_H / 2.0f, 22, rgb(C_ACCENT));
+    if (icon_button(ui_id("bar.queue"), ICON_QUEUE, 752, y + PLAYER_H / 2.0f, 20, 48, rgb(C_SUBTEXT)))
         app_open_uri("vam:queue");
-    gfx_icon(ICON_VOLUME, 782, y + PLAYER_H / 2.0f, 18, rgb(C_SUBTEXT));
-    volume_slider(ui_id("bar.volume"), rect(804, y + PLAYER_H / 2.0f - 2, 136, 4));
+    gfx_icon(ICON_VOLUME, 794, y + PLAYER_H / 2.0f, 20, rgb(C_SUBTEXT));
+    volume_slider(ui_id("bar.volume"), rect(816, y + PLAYER_H / 2.0f - 2, 124, 4));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -253,7 +259,7 @@ void screen_now_playing(void)
     /* Block everything underneath. */
     ui_item(ui_id("np.backdrop"), rect(0, oy, SCREEN_W, SCREEN_H), UI_F_NOFOCUS);
 
-    if (icon_button(ui_id("np.close"), ICON_CHEVRON_DOWN, 36, oy + 32, 26, 44, rgb(C_TEXT)))
+    if (icon_button(ui_id("np.close"), ICON_CHEVRON_DOWN, 36, oy + 32, 28, 52, rgb(C_TEXT)))
         app_set_now_playing(false);
     char from[64];
     const char *k = "";
@@ -263,13 +269,13 @@ void screen_now_playing(void)
     else if (strstr(A.player.context_uri, "collection")) k = "YOUR LIBRARY";
     if (A.player.context_title[0]) {
         snprintf(from, sizeof(from), k[0] ? "PLAYING FROM %s" : "PLAYING FROM", k);
-        text_draw_aligned(from, SCREEN_W / 2.0f, oy + 14, FS_XS, FW_REGULAR, rgb(C_TEXT), 500, ALIGN_CENTER);
-        text_draw_aligned(A.player.context_title, SCREEN_W / 2.0f, oy + 30, FS_S, FW_BOLD, rgb(C_TEXT), 500,
+        text_draw_aligned(from, SCREEN_W / 2.0f, oy + 12, FS_XS, FW_REGULAR, rgb(C_TEXT), 500, ALIGN_CENTER);
+        text_draw_aligned(A.player.context_title, SCREEN_W / 2.0f, oy + 32, FS_S, FW_BOLD, rgb(C_TEXT), 500,
                           ALIGN_CENTER);
     }
-    if (icon_button(ui_id("np.queue"), ICON_QUEUE, SCREEN_W - 84, oy + 32, 22, 44, rgb(C_TEXT)))
+    if (icon_button(ui_id("np.queue"), ICON_QUEUE, SCREEN_W - 92, oy + 32, 24, 52, rgb(C_TEXT)))
         app_open_uri("vam:queue");
-    if (icon_button(ui_id("np.more"), ICON_MORE, SCREEN_W - 36, oy + 32, 22, 44, rgb(C_TEXT)))
+    if (icon_button(ui_id("np.more"), ICON_MORE, SCREEN_W - 36, oy + 32, 24, 52, rgb(C_TEXT)))
         app_open_sheet(tr, A.player.context_uri, 0);
 
     /* Artwork */
@@ -280,7 +286,7 @@ void screen_now_playing(void)
     /* Track info */
     float x0 = 480, w = SCREEN_W - x0 - 56;
     text_draw(tr->title, x0, oy + 150, FS_XXL, FW_BOLD, rgb(C_TEXT), w - 50);
-    rectf artist_r = rect(x0, oy + 194, w - 50, 26);
+    rectf artist_r = rect(x0, oy + 192, w - 50, 32);
     ui_res ar = ui_item(ui_id("np.artist"), artist_r, 0);
     text_draw(tr->subtitle, x0, oy + 196, FS_L, FW_REGULAR, rgb(ar.pressed ? C_TEXT : C_SUBTEXT), w - 50);
     if (ar.focused)
@@ -288,7 +294,7 @@ void screen_now_playing(void)
     if (ar.clicked && tr->artist_uri[0])
         app_open_uri(tr->artist_uri);
     if (icon_button(ui_id("np.like"), tr->is_saved ? ICON_HEART : ICON_HEART_OUTLINE, x0 + w - 14, oy + 186, 26,
-                    44, tr->is_saved ? rgb(C_ACCENT) : rgb(C_TEXT)))
+                    52, tr->is_saved ? rgb(C_ACCENT) : rgb(C_TEXT)))
         app_toggle_saved(tr->uri, tr->is_saved);
 
     seek_slider(ui_id("np.seek"), rect(x0, oy + 262, w, 5), true, oy + 276);

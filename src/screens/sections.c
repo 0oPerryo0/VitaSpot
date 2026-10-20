@@ -5,13 +5,13 @@
 #include "../gfx/text.h"
 #include "../theme.h"
 
-#define ROW_H 56
-#define ENTITY_ROW_H 64
-#define CARD_W 152
+#define ROW_H 64
+#define ENTITY_ROW_H 72
+#define CARD_W 164
 #define CARD_GAP 12
-#define CARD_IMG 132
-#define CARD_H 202
-#define GRID_H 56
+#define CARD_IMG 144
+#define CARD_H 218
+#define GRID_H 64
 #define GRID_GAP 10
 #define CULL_MARGIN 280
 
@@ -37,8 +37,8 @@ static bool in_view(sections_ctx *c, float y, float h)
 
 static void explicit_badge(float x, float cy)
 {
-    gfx_rrect(rect(x, cy - 7, 14, 14), 2, rgb(C_SUBTEXT));
-    text_draw_aligned("E", x + 7, cy - text_line_height(FS_XS) / 2.0f, FS_XS, FW_BOLD, rgb(0x121212), 0,
+    gfx_rrect(rect(x, cy - 8, 16, 16), 2, rgb(C_SUBTEXT));
+    text_draw_aligned("E", x + 8, cy - text_line_height(FS_XS) / 2.0f, FS_XS, FW_BOLD, rgb(0x121212), 0,
                       ALIGN_CENTER);
 }
 
@@ -59,7 +59,7 @@ float draw_track_row(sections_ctx *c, const vam_item *it, uint32_t index, float 
     if (res.pressed || res.focused)
         gfx_rrect(r, 6, rgb(res.pressed ? C_SURFACE_HI2 : C_SURFACE_HI));
 
-    float x = c->x + 12;
+    float x = c->x + ROW_INSET;
     float cy = y + ROW_H / 2;
     if (c->numbered) {
         if (current) {
@@ -70,16 +70,17 @@ float draw_track_row(sections_ctx *c, const vam_item *it, uint32_t index, float 
             text_draw_aligned(num, x + 10, cy - text_line_height(FS_M) / 2.0f, FS_M, FW_REGULAR,
                               rgb(C_SUBTEXT), 0, ALIGN_CENTER);
         }
-        x += 34;
+        x += 40;
     } else if (c->show_art) {
-        draw_cover(it->image_url, rect(x, cy - 20, 40, 40), 4, it->kind, it->title);
-        x += 52;
+        draw_cover(it->image_url, rect(x, cy - 24, 48, 48), 4, it->kind, it->title);
+        x += 60;
     }
 
     /* Right side: heart (if saved), duration, more. */
-    float right = c->x + c->w - 8;
-    float more_cx = right - 16;
-    bool more = icon_button(ui_idx(id, 7), ICON_MORE, more_cx, cy, 18, 32, rgb(C_SUBTEXT));
+    /* Same inset as the search bar's clear button. */
+    float right = c->x + c->w - ROW_INSET;
+    float more_cx = right - 26;
+    bool more = icon_button(ui_idx(id, 7), ICON_MORE, more_cx, cy, 20, TOUCH_MIN, rgb(C_SUBTEXT));
     float dur_r = more_cx - 26;
     if (it->duration_ms) {
         char d[16];
@@ -87,21 +88,21 @@ float draw_track_row(sections_ctx *c, const vam_item *it, uint32_t index, float 
         text_draw_aligned(d, dur_r, cy - text_line_height(FS_S) / 2.0f, FS_S, FW_REGULAR, rgb(C_SUBTEXT), 0,
                           ALIGN_RIGHT);
     }
-    float text_r = dur_r - 56;
+    float text_r = dur_r - 62;
     if (it->is_saved) {
-        gfx_icon(ICON_HEART, dur_r - 70, cy, 16, rgb(C_ACCENT));
-        text_r -= 28;
+        gfx_icon(ICON_HEART, dur_r - 78, cy, 18, rgb(C_ACCENT));
+        text_r -= 30;
     }
 
     float tw = text_r - x;
     color title_c = current ? rgb(C_ACCENT) : playable ? rgb(C_TEXT) : rgb(C_MUTED);
-    text_draw(it->title, x, y + 8, FS_M, FW_REGULAR, title_c, tw);
+    text_draw(it->title, x, y + 9, FS_M, FW_REGULAR, title_c, tw);
     float sx = x;
     if (it->is_explicit) {
-        explicit_badge(sx, y + 38);
-        sx += 20;
+        explicit_badge(sx, y + 45);
+        sx += 22;
     }
-    text_draw(it->subtitle, sx, y + 30, FS_S, FW_REGULAR, rgb(playable ? C_SUBTEXT : C_MUTED), text_r - sx);
+    text_draw(it->subtitle, sx, y + 35, FS_S, FW_REGULAR, rgb(playable ? C_SUBTEXT : C_MUTED), text_r - sx);
 
     if (res.focused)
         draw_focus_ring(r, 6);
@@ -121,16 +122,16 @@ float draw_entity_row(sections_ctx *c, const vam_item *it, uint32_t index, float
     if (in_view(c, y, ENTITY_ROW_H)) {
         if (res.pressed || res.focused)
             gfx_rrect(r, 6, rgb(res.pressed ? C_SURFACE_HI2 : C_SURFACE_HI));
-        float s = 48;
+        float s = 56;
         float rad = it->kind == VAM_KIND_ARTIST ? s / 2 : 4;
-        draw_cover(it->image_url, rect(c->x + 8, y + 8, s, s), rad, it->kind, it->title);
-        float tx = c->x + 8 + s + 14;
+        draw_cover(it->image_url, rect(c->x + ROW_INSET, y + 8, s, s), rad, it->kind, it->title);
+        float tx = c->x + ROW_INSET + s + 14;
         bool cur = app_is_current_context(it->uri);
-        float tw = c->w - (tx - c->x) - (cur ? 44 : 12);
-        text_draw(it->title, tx, y + 12, FS_M, FW_REGULAR, cur ? rgb(C_ACCENT) : rgb(C_TEXT), tw);
-        text_draw(it->subtitle, tx, y + 34, FS_S, FW_REGULAR, rgb(C_SUBTEXT), tw);
+        float tw = c->w - (tx - c->x) - (cur ? 52 : 12);
+        text_draw(it->title, tx, y + 13, FS_M, FW_REGULAR, cur ? rgb(C_ACCENT) : rgb(C_TEXT), tw);
+        text_draw(it->subtitle, tx, y + 39, FS_S, FW_REGULAR, rgb(C_SUBTEXT), tw);
         if (cur)
-            gfx_icon(ICON_VOLUME, c->x + c->w - 24, y + ENTITY_ROW_H / 2, 18, rgb(C_ACCENT));
+            gfx_icon(ICON_VOLUME, c->x + c->w - ROW_INSET - 26, y + ENTITY_ROW_H / 2, 18, rgb(C_ACCENT));
         if (res.focused)
             draw_focus_ring(r, 6);
     }
@@ -167,10 +168,11 @@ static float draw_list(sections_ctx *c, model_section *s, uint32_t si, float y)
 static float draw_grid(sections_ctx *c, model_section *s, uint32_t si, float y)
 {
     const int cols = 3;
-    float w = (c->w - GRID_GAP * (cols - 1)) / cols;
+    float x0 = c->x + ROW_INSET;
+    float w = (c->w - 2 * ROW_INSET - GRID_GAP * (cols - 1)) / cols;
     uint32_t base = ui_idx(ui_id("grid"), si);
     for (uint32_t i = 0; i < s->count; i++) {
-        float x = c->x + (i % cols) * (w + GRID_GAP);
+        float x = x0 + (i % cols) * (w + GRID_GAP);
         float ty = y + (i / cols) * (GRID_H + GRID_GAP);
         const vam_item *it = &s->items[i];
         rectf r = rect(x, ty, w, GRID_H);
@@ -202,13 +204,15 @@ static float draw_shelf(sections_ctx *c, model_section *s, uint32_t si, float y)
         return y + CARD_H;
     }
     scroller *sc = &c->v->shelves[si < MAX_SHELVES ? si : MAX_SHELVES - 1];
-    /* Bleed to the content edges so cards scroll under the padding. */
+    /* Bleed to the content edges so cards scroll under the padding. The
+       art, not the card's press highlight, lines up with the content edge. */
+    const float art_inset = (CARD_W - CARD_IMG) / 2.0f;
     rectf vp = rect(CONTENT_X, y, CONTENT_W, CARD_H);
-    float content = s->count * (CARD_W + CARD_GAP) - CARD_GAP + PAD * 2;
+    float content = s->count * (CARD_W + CARD_GAP) - CARD_GAP + (PAD - art_inset) * 2;
     ui_scroll_begin(sc, vp, content, AXIS_X, false);
     uint32_t base = ui_idx(ui_id("shelf"), si);
     for (uint32_t i = 0; i < s->count; i++) {
-        float x = CONTENT_X + PAD + i * (CARD_W + CARD_GAP) - sc->pos;
+        float x = CONTENT_X + PAD - art_inset + i * (CARD_W + CARD_GAP) - sc->pos;
         if (x + CARD_W < CONTENT_X - 400 || x > SCREEN_W + 400)
             continue;
         const vam_item *it = &s->items[i];
@@ -227,8 +231,8 @@ static float draw_shelf(sections_ctx *c, model_section *s, uint32_t si, float y)
                 gfx_equalizer(img.x + img.w - 22, img.y + img.h - 22, 14, A.time, app_is_playing(),
                               rgb(0x000000));
             }
-            text_draw(it->title, x + 10, y + 152, FS_S, FW_BOLD, rgb(C_TEXT), CARD_IMG);
-            text_draw(artist ? "Artist" : it->subtitle, x + 10, y + 174, FS_XS, FW_REGULAR,
+            text_draw(it->title, x + 10, y + CARD_IMG + 20, FS_S, FW_BOLD, rgb(C_TEXT), CARD_IMG);
+            text_draw(artist ? "Artist" : it->subtitle, x + 10, y + CARD_IMG + 44, FS_XS, FW_REGULAR,
                       rgb(C_SUBTEXT), CARD_IMG);
             if (res.focused)
                 draw_focus_ring(r, 8);
@@ -253,7 +257,7 @@ float draw_sections(sections_ctx *c, model_page *p, uint32_t first, float y)
         if (s->title[0]) {
             y += 14;
             if (near_view(c, y, 36))
-                text_draw(s->title, c->x, y, FS_XL, FW_BOLD, rgb(C_TEXT), c->w);
+                text_draw(s->title, c->x + ROW_INSET, y, FS_XL, FW_BOLD, rgb(C_TEXT), c->w - 2 * ROW_INSET);
             y += 40;
         }
         switch (s->layout) {

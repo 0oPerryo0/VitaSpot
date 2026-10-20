@@ -620,7 +620,7 @@ static void draw_toast(void)
     float left = A.toast_until - A.time;
     float a = left < 0.3f ? left / 0.3f : 1;
     int tw = text_width(A.toast, FS_M, FW_BOLD, 600);
-    float w = tw + 40.0f, h = 40;
+    float w = tw + 40.0f, h = 44;
     float x = (SCREEN_W - w) / 2, y = SCREEN_H - PLAYER_H - h - 16;
     gfx_shadow(rect(x, y, w, h), 8, 10, (uint8_t)(120 * a));
     gfx_rrect(rect(x, y, w, h), 8, with_alpha(rgb(0xFFFFFF), a));

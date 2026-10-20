@@ -59,6 +59,8 @@ void draw_focus_ring(rectf r, float radius)
 
 bool icon_button(uint32_t id, icon_id icon, float cx, float cy, float size, float hit, color c)
 {
+    if (hit < TOUCH_MIN)
+        hit = TOUCH_MIN;
     rectf r = rect(cx - hit / 2, cy - hit / 2, hit, hit);
     ui_res res = ui_item(id, r, 0);
     float s = res.pressed ? size * 0.9f : size;
@@ -88,13 +90,13 @@ bool round_button(uint32_t id, icon_id icon, float cx, float cy, float radius, c
 
 bool pill_button(uint32_t id, const char *label, float x, float y, bool active, float *out_w)
 {
-    float w = text_width(label, FS_S, FW_REGULAR, 0) + 28.0f, h = 32;
+    float w = text_width(label, FS_S, FW_REGULAR, 0) + 32.0f, h = 40;
     rectf r = rect(x, y, w, h);
     ui_res res = ui_item(id, r, 0);
     color bg = active ? rgb(C_ACCENT) : rgb(res.pressed ? C_SURFACE_HI : C_SURFACE_HI2);
     color fg = active ? rgb(0x000000) : rgb(C_TEXT);
     gfx_rrect(r, h / 2, bg);
-    text_draw_vc(label, x + 14, y + h / 2, FS_S, FW_REGULAR, fg, 0);
+    text_draw_vc(label, x + 16, y + h / 2, FS_S, FW_REGULAR, fg, 0);
     if (res.focused)
         draw_focus_ring(r, h / 2);
     if (out_w)
@@ -105,11 +107,11 @@ bool pill_button(uint32_t id, const char *label, float x, float y, bool active, 
 void draw_back_button(view *v, float x, float y)
 {
     (void)v;
-    float r = 17;
+    float r = 20;
     rectf hit = rect(x - 4, y - 4, r * 2 + 8, r * 2 + 8);
     ui_res res = ui_item(ui_id("nav.back"), hit, 0);
     gfx_circle(x + r, y + r, r, rgba(0x000000, res.pressed ? 200 : 150));
-    gfx_icon(ICON_BACK, x + r - 1, y + r, 20, rgb(0xFFFFFF));
+    gfx_icon(ICON_BACK, x + r - 1, y + r, 22, rgb(0xFFFFFF));
     if (res.focused)
         draw_focus_ring(rect(x, y, r * 2, r * 2), r);
     if (res.clicked)
@@ -124,10 +126,10 @@ void draw_loading(rectf area)
 bool draw_error(rectf area, const char *msg)
 {
     float cy = area.y + area.h / 2;
-    text_draw_aligned("Couldn't load this", area.x + area.w / 2, cy - 54, FS_L, FW_BOLD,
+    text_draw_aligned("Couldn't load this", area.x + area.w / 2, cy - 62, FS_L, FW_BOLD,
                       rgb(C_TEXT), area.w - 40, ALIGN_CENTER);
     text_draw_aligned(msg && *msg ? msg : "Check your connection and try again.", area.x + area.w / 2,
-                      cy - 26, FS_S, FW_REGULAR, rgb(C_SUBTEXT), area.w - 40, ALIGN_CENTER);
-    float w = text_width("Try again", FS_S, FW_REGULAR, 0) + 28.0f;
+                      cy - 30, FS_S, FW_REGULAR, rgb(C_SUBTEXT), area.w - 40, ALIGN_CENTER);
+    float w = text_width("Try again", FS_S, FW_REGULAR, 0) + 32.0f;
     return pill_button(ui_id("error.retry"), "Try again", area.x + (area.w - w) / 2, cy + 6, false, NULL);
 }

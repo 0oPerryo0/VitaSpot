@@ -54,24 +54,24 @@ static void action_row(view *v, float x, float y, color avg)
         play_page(p);
     float cx = x + 88;
     color sh = A.player.shuffle ? rgb(C_ACCENT) : rgb(C_SUBTEXT);
-    if (icon_button(ui_id("page.shuffle"), ICON_SHUFFLE, cx, y + 28, 26, 44, sh))
+    if (icon_button(ui_id("page.shuffle"), ICON_SHUFFLE, cx, y + 28, 26, 52, sh))
         vam_set_shuffle(!A.player.shuffle);
     if (A.player.shuffle)
         gfx_circle(cx, y + 48, 2, rgb(C_ACCENT));
-    cx += 52;
+    cx += 56;
     if (p->kind == VAM_KIND_ARTIST) {
         float w = 0;
-        if (pill_button(ui_id("page.follow"), p->is_saved ? "Following" : "Follow", cx - 16, y + 12, false, &w))
+        if (pill_button(ui_id("page.follow"), p->is_saved ? "Following" : "Follow", cx - 16, y + 8, false, &w))
             app_toggle_saved(p->uri, p->is_saved);
         cx += w + 16;
     } else if (can_save(p->kind)) {
-        if (icon_button(ui_id("page.save"), p->is_saved ? ICON_HEART : ICON_HEART_OUTLINE, cx, y + 28, 26, 44,
+        if (icon_button(ui_id("page.save"), p->is_saved ? ICON_HEART : ICON_HEART_OUTLINE, cx, y + 28, 26, 52,
                         p->is_saved ? rgb(C_ACCENT) : rgb(C_SUBTEXT)))
             app_toggle_saved(p->uri, p->is_saved);
-        cx += 52;
+        cx += 56;
     }
     if (p->kind != VAM_KIND_QUEUE && p->kind != VAM_KIND_COLLECTION) {
-        if (icon_button(ui_id("page.more"), ICON_MORE, cx, y + 28, 24, 44, rgb(C_SUBTEXT))) {
+        if (icon_button(ui_id("page.more"), ICON_MORE, cx, y + 28, 24, 52, rgb(C_SUBTEXT))) {
             vam_item it = page_as_item(p);
             app_open_sheet(&it, NULL, 0);
         }
@@ -89,7 +89,7 @@ static float draw_header(view *v, float y0, color avg)
 {
     model_page *p = v->page;
     bool artist = p->kind == VAM_KIND_ARTIST;
-    float cx = CONTENT_X + PAD + 4;
+    float cx = CONTENT_X + PAD;
     float top = y0 + HEADER_TOP;
     rectf cover = rect(cx, top, COVER, COVER);
     if (!artist)
@@ -99,13 +99,13 @@ static float draw_header(view *v, float y0, color avg)
     float tx = cx + COVER + 24;
     float tw = CONTENT_X + CONTENT_W - PAD - tx;
     const char *label = p->kind == VAM_KIND_COLLECTION ? "Playlist" : kind_label(p->kind);
-    float ty = top + 30;
+    float ty = top + 18;
     text_draw(label, tx, ty, FS_S, FW_BOLD, rgb(C_TEXT), tw);
     int ts = title_size(p->title, tw);
-    text_draw(p->title, tx, ty + 20, ts, FW_BOLD, rgb(C_TEXT), tw);
+    text_draw(p->title, tx, ty + 22, ts, FW_BOLD, rgb(C_TEXT), tw);
     float by = top + COVER - 22;
     if (p->description[0])
-        text_draw_wrapped(p->description, tx, by - 40, FS_S, FW_REGULAR, with_alpha(rgb(C_TEXT), 0.7f), tw, 2);
+        text_draw_wrapped(p->description, tx, by - 46, FS_S, FW_REGULAR, with_alpha(rgb(C_TEXT), 0.7f), tw, 2);
     text_draw(p->subtitle, tx, by, FS_S, FW_REGULAR, rgb(C_TEXT), tw);
     (void)avg;
     return top + COVER + 18;
@@ -122,14 +122,14 @@ static void sticky_bar(view *v, color avg)
     gfx_rect(bar, with_alpha(color_scale(avg, 0.55f), t));
     if (t > 0.5f) {
         float a = (t - 0.5f) * 2;
-        gfx_circle(CONTENT_X + 76, 30, 18, with_alpha(rgb(C_ACCENT), a));
+        gfx_circle(CONTENT_X + 84, 30, 20, with_alpha(rgb(C_ACCENT), a));
         bool playing_here = app_is_current_context(v->page->uri) && app_is_playing();
-        gfx_icon(playing_here ? ICON_PAUSE : ICON_PLAY, CONTENT_X + 77, 30, 18, with_alpha(rgb(0x000000), a));
-        rectf hit = rect(CONTENT_X + 56, 10, 40, 40);
+        gfx_icon(playing_here ? ICON_PAUSE : ICON_PLAY, CONTENT_X + 85, 30, 20, with_alpha(rgb(0x000000), a));
+        rectf hit = rect(CONTENT_X + 60, 6, TOUCH_MIN, TOUCH_MIN);
         if (ui_item(ui_id("page.sticky.play"), hit, UI_F_NOFOCUS).clicked)
             play_page(v->page);
-        text_draw_vc(v->page->title, CONTENT_X + 106, 30, FS_L, FW_BOLD, with_alpha(rgb(C_TEXT), a),
-                     CONTENT_W - 140);
+        text_draw_vc(v->page->title, CONTENT_X + 116, 30, FS_L, FW_BOLD, with_alpha(rgb(C_TEXT), a),
+                     CONTENT_W - 150);
     }
 }
 
@@ -171,7 +171,7 @@ void screen_page(view *v)
 
     float y;
     if (queue) {
-        text_draw("Queue", CONTENT_X + PAD + 50, y0 + 16, FS_XL, FW_BOLD, rgb(C_TEXT), CONTENT_W);
+        text_draw("Queue", CONTENT_X + PAD + 52, y0 + 16, FS_XL, FW_BOLD, rgb(C_TEXT), CONTENT_W);
         y = y0 + 62;
     } else {
         y = draw_header(v, y0, avg);
@@ -180,8 +180,8 @@ void screen_page(view *v)
     }
 
     bool numbered = p->kind == VAM_KIND_ALBUM || p->kind == VAM_KIND_ARTIST;
-    sections_ctx c = { v, queue ? NULL : p->uri, numbered, !numbered, vp, CONTENT_X + PAD - 8,
-                       CONTENT_W - 2 * PAD + 16 };
+    sections_ctx c = { v, queue ? NULL : p->uri, numbered, !numbered, vp, CONTENT_X + PAD - ROW_INSET,
+                       CONTENT_W - 2 * PAD + 2 * ROW_INSET };
     float before = y;
     y = draw_sections(&c, p, 0, y);
     if (y == before && !v->req)

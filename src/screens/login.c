@@ -22,10 +22,10 @@ static void step(int n, const char *text, float x, float y, float w)
 {
     char num[4];
     snprintf(num, sizeof(num), "%d", n);
-    gfx_circle(x + 14, y + 14, 14, rgb(C_SURFACE_HI2));
-    text_draw_aligned(num, x + 14, y + 14 - text_line_height(FS_S) / 2.0f, FS_S, FW_BOLD, rgb(C_TEXT), 0,
+    gfx_circle(x + 16, y + 14, 16, rgb(C_SURFACE_HI2));
+    text_draw_aligned(num, x + 16, y + 14 - text_line_height(FS_S) / 2.0f, FS_S, FW_BOLD, rgb(C_TEXT), 0,
                       ALIGN_CENTER);
-    text_draw_vc(text, x + 42, y + 14, FS_M, FW_REGULAR, rgb(C_TEXT), w - 42);
+    text_draw_vc(text, x + 46, y + 14, FS_M, FW_REGULAR, rgb(C_TEXT), w - 46);
 }
 
 void screen_login(void)
@@ -47,9 +47,9 @@ void screen_login(void)
     }
     text_draw_aligned(status, SCREEN_W / 2.0f, 172, FS_L, FW_BOLD, sc, 0, ALIGN_CENTER);
     if (a->message[0])
-        text_draw_aligned(a->message, SCREEN_W / 2.0f, 198, FS_S, FW_REGULAR, rgb(C_SUBTEXT), 700, ALIGN_CENTER);
+        text_draw_aligned(a->message, SCREEN_W / 2.0f, 202, FS_S, FW_REGULAR, rgb(C_SUBTEXT), 700, ALIGN_CENTER);
 
-    rectf card = rect(200, 232, 560, 176);
+    rectf card = rect(160, 236, 640, 176);
     gfx_rrect(card, 12, rgba(0x000000, 110));
     char pick[300];
     snprintf(pick, sizeof(pick), "Tap the devices icon and choose \"%s\".",
@@ -83,8 +83,8 @@ void screen_premium(void)
     char who[300];
     snprintf(who, sizeof(who), "Signed in as %s",
              A.auth.display_name[0] ? A.auth.display_name : A.auth.username);
-    text_draw_aligned(who, SCREEN_W / 2.0f, 248, FS_M, FW_REGULAR, rgb(C_SUBTEXT), 800, ALIGN_CENTER);
-    float w = text_width("Log out", FS_S, FW_REGULAR, 0) + 28.0f;
+    text_draw_aligned(who, SCREEN_W / 2.0f, 252, FS_M, FW_REGULAR, rgb(C_SUBTEXT), 800, ALIGN_CENTER);
+    float w = text_width("Log out", FS_S, FW_REGULAR, 0) + 32.0f;
     if (pill_button(ui_id("premium.logout"), "Log out", (SCREEN_W - w) / 2, 300, false, NULL))
         vam_logout();
     footer();

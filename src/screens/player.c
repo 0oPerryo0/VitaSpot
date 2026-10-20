@@ -350,12 +350,13 @@ void screen_now_playing(void)
         draw_cover(tr->image_url, art, 8, tr->kind, tr->title);
     }
 
-    /* Track info. With lyrics showing, the cover moves next to the title. */
+    /* Track info. With lyrics showing, the cover moves next to the title,
+       spanning the title's cap height down to the artist's baseline. */
     float x0 = 480, w = SCREEN_W - x0 - 56;
     float tx = x0;
     if (show_lyrics) {
-        draw_cover(tr->image_url, rect(x0, oy + 152, 64, 64), 4, tr->kind, tr->title);
-        tx = x0 + 78;
+        draw_cover(tr->image_url, rect(x0, oy + 157, 60, 60), 4, tr->kind, tr->title);
+        tx = x0 + 74;
     }
     float tw = w - 50 - (tx - x0);
     marquee_text(ui_id("np.title"), tr->title, tx, oy + 150, FS_XXL, FW_BOLD, rgb(C_TEXT), tw);

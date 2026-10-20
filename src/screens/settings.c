@@ -1,4 +1,4 @@
-/* Settings tab: the signed-in account (with log out), screen power, and about. */
+/* Settings tab: the signed-in account (with log out), screen power, audio quality, and about. */
 
 #include <stdio.h>
 
@@ -6,6 +6,7 @@
 #include "../gfx/images.h"
 #include "../gfx/text.h"
 #include "../power.h"
+#include "../prefs.h"
 #include "../theme.h"
 
 /* Log out asks once more before it forgets the saved login. */
@@ -90,13 +91,13 @@ static void timer_row(uint32_t id, const char *label, int *value, const int *cho
     fmt_seconds(*value, val, sizeof(val));
     if (pill_button(id, val, right - pill_w(val), cy - 20, false, NULL)) {
         *value = next_choice(choices, *value);
-        power_settings_save();
+        prefs_changed();
     }
 }
 
 static float screen_card(float x, float y, float w)
 {
-    power_settings *ps = power_settings_get();
+    prefs *ps = prefs_get();
     rectf card = rect(x, y, w, SCREEN_ROW_H * 3);
     gfx_rrect(card, 8, rgb(C_SURFACE));
     for (int i = 1; i < 3; i++)
@@ -108,7 +109,8 @@ static float screen_card(float x, float y, float w)
     if (ui_captured_combo(&a, &b)) {
         ps->combo[0] = a;
         ps->combo[1] = b;
-        power_settings_save();
+        prefs_changed();
+        power_apply_prefs();
     }
     bool capturing = ui_capturing_combo();
     float cy = card.y + SCREEN_ROW_H / 2.0f;
@@ -132,11 +134,46 @@ static float screen_card(float x, float y, float w)
     return card.h + 10 + text_line_height(FS_S);
 }
 
+static const int BITRATES[] = { 320, 160, 96 };
+
+static const char *quality_label(int kbps)
+{
+    return kbps == 320 ? "High (320 kbps)" : kbps == 160 ? "Normal (160 kbps)" : "Low (96 kbps)";
+}
+
+static float audio_card(float x, float y, float w)
+{
+    prefs *p = prefs_get();
+    rectf card = rect(x, y, w, SCREEN_ROW_H);
+    gfx_rrect(card, 8, rgb(C_SURFACE));
+    float cy = card.y + SCREEN_ROW_H / 2.0f, right = card.x + card.w - 16;
+    text_draw_vc("Audio quality", card.x + 16, cy, FS_M, FW_REGULAR, rgb(C_TEXT), 260);
+    const char *val = quality_label(p->bitrate);
+    if (pill_button(ui_id("settings.quality"), val, right - pill_w(val), cy - 20, false, NULL)) {
+        int i = 0;
+        while (i < 3 && BITRATES[i] != p->bitrate)
+            i++;
+        int next = BITRATES[(i + 1) % 3];
+        /* Keep the shown and saved value in step with what actually plays. */
+        if (vam_set_bitrate(next) == VAM_OK) {
+            p->bitrate = next;
+            prefs_changed();
+        } else {
+            app_toast("Couldn't change the audio quality.");
+        }
+    }
+    text_draw("Applies from the next song. Lower quality uses less data and starts songs faster.", x,
+              card.y + card.h + 10, FS_S, FW_REGULAR, rgb(C_MUTED), w);
+    return card.h + 10 + text_line_height(FS_S);
+}
+
 static float about_card(float x, float y, float w)
 {
     rectf card = rect(x, y, w, 96);
     gfx_rrect(card, 8, rgb(C_SURFACE));
     text_draw("VitaSpot", card.x + 16, card.y + 20, FS_M, FW_BOLD, rgb(C_TEXT), card.w - 32);
+    text_draw_aligned("Version " VAM_APP_VERSION, card.x + card.w - 16, card.y + 22, FS_S, FW_REGULAR,
+                      rgb(C_SUBTEXT), 0, ALIGN_RIGHT);
     text_draw("An unofficial Spotify client for the PS Vita. Not affiliated with Spotify.", card.x + 16,
               card.y + 50, FS_S, FW_REGULAR, rgb(C_SUBTEXT), card.w - 32);
     return card.h;
@@ -167,6 +204,10 @@ void screen_settings(view *v)
     text_draw("Screen", x, y, FS_L, FW_BOLD, rgb(C_TEXT), w);
     y += 38;
     y += screen_card(x, y, w) + 32;
+
+    text_draw("Audio", x, y, FS_L, FW_BOLD, rgb(C_TEXT), w);
+    y += 38;
+    y += audio_card(x, y, w) + 32;
 
     text_draw("About", x, y, FS_L, FW_BOLD, rgb(C_TEXT), w);
     y += 38;

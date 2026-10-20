@@ -1,9 +1,8 @@
 #include "power.h"
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
+#include "prefs.h"
 #include "ui/ui.h"
 
 #define CAPTURE_TIMEOUT_MS 8000
@@ -14,80 +13,20 @@ const int POWER_DIM_CHOICES[] = { 0, 15, 30, 60, 120, 300 };
 const int POWER_OFF_CHOICES[] = { 0, 30, 60, 120, 300, 600 };
 const int POWER_CHOICE_COUNT = 6;
 
-static power_settings g_set = { { BTN_SELECT, BTN_START }, 30, 120 };
 static screen_level g_level = SCREEN_ON;
 static Uint64 g_last_input;
 static Uint64 g_capture_since;
 
-/* Names in settings.txt; stable even if the btn enum is reordered. */
-static const char *const KEYS[BTN_COUNT] = { "up", "down", "left", "right", "confirm", "back",
-                                             "triangle", "square", "l", "r", "start", "select" };
-
-static int key_btn(const char *s)
-{
-    for (int i = 0; i < BTN_COUNT; i++)
-        if (strcmp(KEYS[i], s) == 0)
-            return i;
-    return -1;
-}
-
-static void settings_path(char *buf, size_t n) { snprintf(buf, n, "%ssettings.txt", platform_data_dir()); }
-
-static int seconds(const char *v)
-{
-    int s = atoi(v);
-    return s < 0 ? 0 : s;
-}
-
 void power_init(void)
 {
-    char path[512];
-    settings_path(path, sizeof(path));
-    FILE *f = fopen(path, "r");
-    if (f) {
-        char line[128];
-        while (fgets(line, sizeof(line), f)) {
-            line[strcspn(line, "\r\n")] = 0;
-            char *eq = strchr(line, '=');
-            if (!eq)
-                continue;
-            *eq = 0;
-            const char *v = eq + 1;
-            if (strcmp(line, "screen_off_combo") == 0) {
-                char a[16], b[16];
-                if (sscanf(v, "%15[^+]+%15s", a, b) == 2) {
-                    int x = key_btn(a), y = key_btn(b);
-                    if (x >= 0 && y >= 0 && x != y) {
-                        g_set.combo[0] = (btn)x;
-                        g_set.combo[1] = (btn)y;
-                    }
-                }
-            } else if (strcmp(line, "dim_after") == 0) {
-                g_set.dim_after = seconds(v);
-            } else if (strcmp(line, "screen_off_after") == 0) {
-                g_set.off_after = seconds(v);
-            }
-        }
-        fclose(f);
-    }
-    ui_set_combo(g_set.combo[0], g_set.combo[1]);
+    power_apply_prefs();
     g_last_input = SDL_GetTicks64();
 }
 
-power_settings *power_settings_get(void) { return &g_set; }
-
-void power_settings_save(void)
+void power_apply_prefs(void)
 {
-    ui_set_combo(g_set.combo[0], g_set.combo[1]);
-    char path[512];
-    settings_path(path, sizeof(path));
-    FILE *f = fopen(path, "w");
-    if (!f)
-        return;
-    fprintf(f, "screen_off_combo=%s+%s\n", KEYS[g_set.combo[0]], KEYS[g_set.combo[1]]);
-    fprintf(f, "dim_after=%d\n", g_set.dim_after);
-    fprintf(f, "screen_off_after=%d\n", g_set.off_after);
-    fclose(f);
+    prefs *p = prefs_get();
+    ui_set_combo(p->combo[0], p->combo[1]);
 }
 
 screen_level power_screen(void) { return g_level; }
@@ -165,8 +104,9 @@ void power_frame(void)
         return;
     }
     Uint64 idle = now - g_last_input;
-    if (g_set.off_after > 0 && idle >= (Uint64)g_set.off_after * 1000)
+    const prefs *p = prefs_get();
+    if (p->off_after > 0 && idle >= (Uint64)p->off_after * 1000)
         set_level(SCREEN_OFF);
-    else if (g_set.dim_after > 0 && idle >= (Uint64)g_set.dim_after * 1000 && g_level == SCREEN_ON)
+    else if (p->dim_after > 0 && idle >= (Uint64)p->dim_after * 1000 && g_level == SCREEN_ON)
         set_level(SCREEN_DIM);
 }

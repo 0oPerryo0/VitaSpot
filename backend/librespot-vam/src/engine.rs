@@ -1274,6 +1274,7 @@ impl Engine {
                 320 => Bitrate::Bitrate320,
                 _ => Bitrate::Bitrate160,
             },
+            live_bitrate: Some(self.backend.bitrate.clone()),
             normalisation: config.normalize_volume,
             // The ARM CPU is slow: skip dithering, and normalise with Basic
             // (one gain per track, capped by the track's peak) rather than

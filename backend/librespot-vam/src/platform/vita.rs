@@ -193,7 +193,85 @@ impl log::Log for FileLogger {
     fn flush(&self) {}
 }
 
+impl FileLogger {
+    /// For the panic hook and the allocator: never waits for the lock for
+    /// long, since the crash may come from a thread that already holds it
+    /// (re-locking a std Mutex there would hang instead of aborting). Writing
+    /// formatted text to a `File` does not allocate.
+    fn log_crash(&self, args: std::fmt::Arguments) {
+        use std::io::Write;
+        use std::sync::TryLockError;
+        for _ in 0..50 {
+            let mut guard = match self.file.try_lock() {
+                Ok(guard) => guard,
+                Err(TryLockError::Poisoned(e)) => e.into_inner(),
+                Err(TryLockError::WouldBlock) => {
+                    std::thread::sleep(std::time::Duration::from_millis(2));
+                    continue;
+                }
+            };
+            if let Some(file) = guard.as_mut() {
+                let _ = writeln!(file, "[{}] ERROR crash: {}", now_ms(), args);
+            }
+            return;
+        }
+    }
+}
+
 static LOGGER: OnceLock<FileLogger> = OnceLock::new();
+
+/// The system allocator, logging failed allocations to vam.log: an
+/// out-of-memory abort otherwise leaves no reason behind. Unlike
+/// `set_alloc_error_hook` this needs no unstable feature.
+struct LoggingAlloc;
+
+static IN_ALLOC_LOG: AtomicBool = AtomicBool::new(false);
+
+impl LoggingAlloc {
+    fn failed(layout: std::alloc::Layout) {
+        // Guard against recursing if the log write itself fails to allocate.
+        if IN_ALLOC_LOG.swap(true, Ordering::Acquire) {
+            return;
+        }
+        if let Some(logger) = LOGGER.get() {
+            logger.log_crash(format_args!("allocation of {} bytes failed", layout.size()));
+        }
+        IN_ALLOC_LOG.store(false, Ordering::Release);
+    }
+}
+
+unsafe impl std::alloc::GlobalAlloc for LoggingAlloc {
+    unsafe fn alloc(&self, layout: std::alloc::Layout) -> *mut u8 {
+        let p = std::alloc::System.alloc(layout);
+        if p.is_null() {
+            Self::failed(layout);
+        }
+        p
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: std::alloc::Layout) -> *mut u8 {
+        let p = std::alloc::System.alloc_zeroed(layout);
+        if p.is_null() {
+            Self::failed(layout);
+        }
+        p
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: std::alloc::Layout) {
+        std::alloc::System.dealloc(ptr, layout)
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: std::alloc::Layout, new_size: usize) -> *mut u8 {
+        let p = std::alloc::System.realloc(ptr, layout, new_size);
+        if p.is_null() {
+            Self::failed(std::alloc::Layout::from_size_align_unchecked(new_size, layout.align()));
+        }
+        p
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: LoggingAlloc = LoggingAlloc;
 
 pub fn init_logging(data_dir: &str) {
     static ONCE: Once = Once::new();
@@ -211,6 +289,16 @@ pub fn init_logging(data_dir: &str) {
         let _ = log::set_logger(logger);
         log::set_max_level(log::LevelFilter::Info);
         log::info!("VitaSpot backend starting (log: {path})");
+
+        // The Vita build aborts on panic (panic_abort) and stderr goes
+        // nowhere, so without this a crash leaves no reason behind.
+        std::panic::set_hook(Box::new(move |info| {
+            let thread = std::thread::current();
+            logger.log_crash(format_args!(
+                "panic on thread {}: {info}",
+                thread.name().unwrap_or("<unnamed>")
+            ));
+        }));
     });
 }
 

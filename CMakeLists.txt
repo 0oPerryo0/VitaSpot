@@ -5,6 +5,10 @@ cmake_minimum_required(VERSION 3.16)
 
 project(VitaSpot C)
 
+# App version, shown in Settings and at the top of vam.log. A "d" suffix marks
+# a development build; it changes only when a release is cut.
+set(VITASPOT_VERSION "0.0.2d")
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -20,6 +24,7 @@ set(FRONTEND_SOURCES
     src/app.c
     src/model.c
     src/power.c
+    src/prefs.c
     src/gfx/gfx.c
     src/gfx/text.c
     src/gfx/images.c
@@ -48,6 +53,7 @@ endif()
 
 add_executable(VitaSpot ${FRONTEND_SOURCES})
 target_include_directories(VitaSpot PRIVATE include src)
+target_compile_definitions(VitaSpot PRIVATE VAM_APP_VERSION="${VITASPOT_VERSION}")
 
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(VitaSpot PRIVATE -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers)

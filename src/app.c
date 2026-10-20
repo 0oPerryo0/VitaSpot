@@ -7,6 +7,7 @@
 #include "gfx/text.h"
 #include "platform/platform.h"
 #include "power.h"
+#include "prefs.h"
 #include "theme.h"
 
 app A;
@@ -552,6 +553,7 @@ bool app_init(SDL_Window *w, SDL_Renderer *r)
     A.np_color = rgb(0x404040);
     reset_stacks();
     load_recent();
+    prefs_load();
     power_init();
 
     vam_config cfg;
@@ -559,7 +561,7 @@ bool app_init(SDL_Window *w, SDL_Renderer *r)
     cfg.api_version = VAM_API_VERSION;
     cfg.device_name = platform_is_vita() ? "PS Vita" : "VitaSpot Desktop";
     cfg.data_dir = platform_data_dir();
-    cfg.bitrate = platform_is_vita() ? 320 : 160;
+    cfg.bitrate = prefs_get()->bitrate;
     /* The Vita ignores initial_volume and starts at the system volume.
        Normalisation turns loud masters down by their ReplayGain; without it
        full-scale tracks clip the Vita's speaker above ~80% volume. */
@@ -568,6 +570,7 @@ bool app_init(SDL_Window *w, SDL_Renderer *r)
     vam_result res = vam_init(&cfg);
     if (res != VAM_OK)
         SDL_Log("vam_init failed: %d", res);
+    vam_log("VitaSpot " VAM_APP_VERSION);
     vam_get_auth_state(&A.auth);
     vam_get_player_state(&A.player);
     return true;
@@ -578,6 +581,7 @@ void app_shutdown(void)
     for (int t = 0; t < TAB_COUNT; t++)
         for (int d = 0; d < A.depth[t]; d++)
             view_free(&A.stacks[t][d]);
+    prefs_flush();
     vam_shutdown();
 }
 
@@ -696,6 +700,7 @@ void app_frame(float dt)
     }
 
     power_frame();
+    prefs_frame();
     if (!app_drawing()) {
         /* Screen off: keep playback and backend events going, draw nothing. */
         platform_frame(app_is_playing());

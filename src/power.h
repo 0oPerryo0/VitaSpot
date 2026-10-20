@@ -12,17 +12,10 @@
 
 #include "platform/platform.h"
 
-typedef struct power_settings {
-    btn combo[2];   /* screen-off combo                       */
-    int dim_after;  /* seconds without input, 0 = never        */
-    int off_after;  /* seconds without input, 0 = never        */
-} power_settings;
-
-/* Loads settings.txt and applies the combo. */
+/* Applies the combo from prefs. */
 void power_init(void);
-power_settings *power_settings_get(void);
-/* Saves settings.txt and re-applies the combo. */
-void power_settings_save(void);
+/* Re-apply after the combo in prefs changed. */
+void power_apply_prefs(void);
 
 /* Every SDL event goes through here first. Returns true when the event only
  * woke the screen and must not reach the UI. */

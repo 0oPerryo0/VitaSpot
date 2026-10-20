@@ -325,6 +325,9 @@ vam_result vam_seek(uint32_t position_ms);
 vam_result vam_set_shuffle(int enabled);
 vam_result vam_set_repeat(int32_t mode);  /* vam_repeat */
 vam_result vam_set_volume(uint16_t volume);
+/* Streaming quality, 96, 160 or 320 kbps (vam_config.bitrate at start).
+ * Applies from the next track loaded. */
+vam_result vam_set_bitrate(int32_t kbps);
 vam_result vam_add_to_queue(const char *track_uri);
 
 /* ------------------------------------------------------------------------ */

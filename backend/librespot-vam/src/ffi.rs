@@ -214,6 +214,23 @@ pub unsafe extern "C" fn vam_get_player_state(out: *mut vam_player_state) {
 }
 
 #[no_mangle]
+pub extern "C" fn vam_set_bitrate(kbps: i32) -> i32 {
+    if !matches!(kbps, 96 | 160 | 320) {
+        return VAM_ERR_INVALID_ARG;
+    }
+    match backend() {
+        Some(backend) => {
+            backend
+                .bitrate
+                .store(kbps as u32, std::sync::atomic::Ordering::Relaxed);
+            log::info!("audio quality set to {kbps} kbps");
+            VAM_OK
+        }
+        None => VAM_ERR_UNKNOWN,
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn vam_logout() -> i32 {
     match backend() {
         Some(backend) => {

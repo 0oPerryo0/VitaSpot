@@ -732,6 +732,11 @@ void vam_event_release(vam_event *ev)
 void vam_get_auth_state(vam_auth_state *out) { *out = g_auth; }
 void vam_get_player_state(vam_player_state *out) { *out = g_player; }
 
+vam_result vam_set_bitrate(int32_t kbps)
+{
+    return kbps == 96 || kbps == 160 || kbps == 320 ? VAM_OK : VAM_ERR_INVALID_ARG;
+}
+
 vam_result vam_logout(void)
 {
     g_auth.status = VAM_AUTH_LOGGED_OUT;

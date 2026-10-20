@@ -47,6 +47,14 @@ round trips per track, about 2-3 s of the load time on the Vita. After
 probing, the demuxer already sits at the first audio packet. Starts at a
 non-zero position (resume, seek-on-load) still seek as before.
 
+`src/config.rs` / `src/player.rs` - new `PlayerConfig::live_bitrate`
+(`Option<Arc<AtomicU32>>`). When set to 96, 160 or 320, `load_track` picks
+formats for that bitrate instead of `bitrate`, so the audio quality setting
+applies from the next track without recreating the player (which would mean
+signing in again). Preloads remember the `live_bitrate` they were started
+with and are dropped when it no longer matches, so a next track fetched
+before the change is loaded again at the new quality.
+
 ## librespot-core
 
 * `src/session.rs` - `check_catalogue()` upstream calls `std::process::exit(1)`

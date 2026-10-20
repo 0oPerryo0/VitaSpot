@@ -647,6 +647,12 @@ int main(int argc, char **argv)
     CHECK(now2 >= now1 + 5, "vam_now_ms does not advance (%llu -> %llu)",
           (unsigned long long)now1, (unsigned long long)now2);
 
+    CHECK(vam_set_bitrate(96) == VAM_OK, "vam_set_bitrate(96) failed");
+    CHECK(vam_set_bitrate(320) == VAM_OK, "vam_set_bitrate(320) failed");
+    CHECK(vam_set_bitrate(0) == VAM_ERR_INVALID_ARG, "vam_set_bitrate(0) accepted");
+    CHECK(vam_set_bitrate(128) == VAM_ERR_INVALID_ARG, "vam_set_bitrate(128) accepted");
+    CHECK(vam_set_bitrate(160) == VAM_OK, "vam_set_bitrate(160) failed");
+
     bool logged_in = wait_auth(VAM_AUTH_LOGGED_IN, 25000);
     vam_get_auth_state(&auth);
     if (logged_in) {

@@ -2277,9 +2277,15 @@ impl PlayerInternal {
             );
         }
 
+        let seek_start = Instant::now();
         if let Some(decoder) = self.state.decoder() {
             match decoder.seek(position_ms) {
                 Ok(new_position_ms) => {
+                    // VitaSpot: drop the audio the sink buffered before the
+                    // seek, or it plays out first (1 s on the Vita).
+                    if let Err(e) = self.sink.flush() {
+                        warn!("sink flush after seek failed: {e}");
+                    }
                     if let PlayerState::Playing {
                         ref mut stream_position_ms,
                         ref track_id,
@@ -2308,8 +2314,14 @@ impl PlayerInternal {
             error!("Player::seek called from invalid state: {:?}", self.state);
         }
 
+        let decoder_ms = seek_start.elapsed().as_millis();
+
         // ensure we have a bit of a buffer of downloaded data
         self.preload_data_before_playback()?;
+        info!(
+            "seek to {position_ms} ms: decoder seek {decoder_ms} ms, read-ahead wait {} ms",
+            seek_start.elapsed().as_millis() - decoder_ms
+        );
 
         if let PlayerState::Playing {
             ref mut reported_nominal_start_time,
@@ -2482,14 +2494,17 @@ impl PlayerInternal {
             ..
         } = self.state
         {
-            let read_ahead_during_playback = AudioFetchParams::get().read_ahead_during_playback;
+            let params = AudioFetchParams::get();
+            let read_ahead_during_playback = params.read_ahead_during_playback;
             // Request our read ahead range
             let request_data_length =
                 (read_ahead_during_playback.as_secs_f32() * bytes_per_second as f32) as usize;
 
-            // Request the part we want to wait for blocking. This effectively means we wait for the previous request to partially complete.
-            let wait_for_data_length =
-                (read_ahead_during_playback.as_secs_f32() * bytes_per_second as f32) as usize;
+            // VitaSpot: after a seek, wait only for what a start waits for
+            // (read_ahead_before_playback, 1 s) instead of the full 5 s read
+            // ahead; the rest keeps downloading while it plays.
+            let wait_for_data_length = (params.read_ahead_before_playback.as_secs_f32()
+                * bytes_per_second as f32) as usize;
 
             stream_loader_controller.fetch_next_and_wait(request_data_length, wait_for_data_length)
         } else {

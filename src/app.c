@@ -5,6 +5,7 @@
 
 #include "gfx/images.h"
 #include "gfx/text.h"
+#include "lyrics.h"
 #include "platform/platform.h"
 #include "power.h"
 #include "prefs.h"
@@ -481,8 +482,10 @@ static void handle_vam_event(vam_event *ev)
     case VAM_EV_AUTH_CHANGED: {
         int before = A.auth.status;
         vam_get_auth_state(&A.auth);
-        if (before == VAM_AUTH_LOGGED_IN && A.auth.status != VAM_AUTH_LOGGED_IN)
+        if (before == VAM_AUTH_LOGGED_IN && A.auth.status != VAM_AUTH_LOGGED_IN) {
             reset_stacks();
+            lyrics_reset();
+        }
         break;
     }
     case VAM_EV_PLAYER_CHANGED:
@@ -514,6 +517,9 @@ static void handle_vam_event(vam_event *ev)
     }
     case VAM_EV_IMAGE:
         images_on_event(ev);
+        break;
+    case VAM_EV_LYRICS:
+        lyrics_on_event(ev);
         break;
     case VAM_EV_REQUEST_DONE:
         for (int i = 0; i < PENDING_SAVES; i++) {
@@ -701,6 +707,7 @@ void app_frame(float dt)
 
     power_frame();
     prefs_frame();
+    lyrics_frame();
     if (!app_drawing()) {
         /* Screen off: keep playback and backend events going, draw nothing. */
         platform_frame(app_is_playing());

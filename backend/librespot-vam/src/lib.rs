@@ -12,6 +12,7 @@ mod ffi;
 mod images;
 mod internal;
 mod items;
+mod lyrics;
 mod metadata;
 mod model;
 mod pages;

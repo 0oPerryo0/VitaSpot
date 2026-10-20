@@ -55,6 +55,18 @@ signing in again). Preloads remember the `live_bitrate` they were started
 with and are dropped when it no longer matches, so a next track fetched
 before the change is loaded again at the new quality.
 
+`src/audio_backend/mod.rs` / `src/player.rs` - seeks respond faster:
+
+* `Sink` gains a `flush()` method (default no-op), which
+  `handle_command_seek` calls once the decoder has seeked. The Vita sink
+  empties its 1 s ring buffer, which otherwise played out pre-seek audio
+  first.
+* After a seek, `preload_data_before_playback` blocks only until
+  `read_ahead_before_playback` (1 s) of audio is downloaded instead of
+  `read_ahead_during_playback` (5 s). It still requests the full 5 s.
+* Each seek logs how long the decoder seek (Ogg bisection, one CDN round
+  trip per probe of data not yet downloaded) and the read-ahead wait took.
+
 ## librespot-core
 
 * `src/session.rs` - `check_catalogue()` upstream calls `std::process::exit(1)`

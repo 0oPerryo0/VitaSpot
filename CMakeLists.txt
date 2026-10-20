@@ -7,7 +7,7 @@ project(VitaSpot C)
 
 # App version, shown in Settings and at the top of vam.log. A "d" suffix marks
 # a development build; it changes only when a release is cut.
-set(VITASPOT_VERSION "0.0.2")
+set(VITASPOT_VERSION "0.0.3d")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -22,6 +22,7 @@ set(VAM_BACKEND_LINK_LIBS "" CACHE STRING "Extra libraries the backend needs (ex
 set(FRONTEND_SOURCES
     src/main.c
     src/app.c
+    src/lyrics.c
     src/model.c
     src/power.c
     src/prefs.c

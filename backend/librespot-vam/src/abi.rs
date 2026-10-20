@@ -9,7 +9,7 @@
 
 use std::os::raw::{c_char, c_void};
 
-pub const VAM_API_VERSION: u32 = 1;
+pub const VAM_API_VERSION: u32 = 2;
 
 pub const VAM_URI_MAX: usize = 96;
 pub const VAM_TEXT_MAX: usize = 192;
@@ -76,6 +76,7 @@ pub const VAM_EV_REQUEST_DONE: i32 = 5;
 pub const VAM_EV_SAVED_CHANGED: i32 = 6;
 pub const VAM_EV_ERROR: i32 = 7;
 pub const VAM_EV_TOAST: i32 = 8;
+pub const VAM_EV_LYRICS: i32 = 9;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -175,6 +176,23 @@ impl Default for vam_auth_state {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
+pub struct vam_lyrics_line {
+    pub start_ms: u32,
+    pub text_offset: u32,
+}
+
+#[repr(C)]
+pub struct vam_lyrics {
+    pub synced: u8,
+    pub reserved: [u8; 3],
+    pub line_count: u32,
+    pub lines: *mut vam_lyrics_line,
+    pub text_size: u32,
+    pub text: *const c_char,
+}
+
+#[repr(C)]
 pub struct vam_event {
     pub type_: i32,
     pub request_id: u32,
@@ -186,6 +204,7 @@ pub struct vam_event {
     pub page: *mut vam_page,
     pub data: *const u8,
     pub data_size: u32,
+    pub lyrics: *mut vam_lyrics,
 }
 
 impl Default for vam_event {
@@ -201,12 +220,13 @@ impl Default for vam_event {
             page: std::ptr::null_mut(),
             data: std::ptr::null(),
             data_size: 0,
+            lyrics: std::ptr::null_mut(),
         }
     }
 }
 
-// SAFETY: a `vam_event` is an owning handle. `page` and `data` point at
-// allocations made by this library which are never shared or aliased: the
+// SAFETY: a `vam_event` is an owning handle. `page`, `data` and `lyrics` point
+// at allocations made by this library which are never shared or aliased: the
 // event queue hands the only reference to the UI thread, and
 // `vam_event_release` frees them exactly once. Moving the event between the
 // worker threads and the event queue mutex is therefore sound.

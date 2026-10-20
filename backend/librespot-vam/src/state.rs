@@ -9,6 +9,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::abi::*;
 use crate::engine::Command;
+use crate::lyrics::free_lyrics;
 use crate::model::{free_image, free_page};
 use crate::util::copy_str;
 
@@ -150,6 +151,10 @@ pub unsafe fn release_event(event: &mut vam_event) {
         free_image(event.data, event.data_size);
         event.data = std::ptr::null();
         event.data_size = 0;
+    }
+    if !event.lyrics.is_null() {
+        free_lyrics(event.lyrics);
+        event.lyrics = std::ptr::null_mut();
     }
 }
 

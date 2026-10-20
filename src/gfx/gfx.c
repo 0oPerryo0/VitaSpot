@@ -623,6 +623,13 @@ void gfx_icon(icon_id id, float cx, float cy, float size, color c)
         }
         break;
     }
+    case ICON_MIC:
+        /* Capsule, cradle arc and stand. */
+        gfx_rrect(rect(GX(g, 8.5f), GY(g, 2.5f), 7 * g.u, 12 * g.u), 3.5f * g.u, c);
+        gfx_arc(GX(g, 12), GY(g, 10.5f), 6.5f * g.u, 1.8f * g.u, 0, (float)M_PI, c);
+        gl(g, 12, 17, 12, 21, 1.8f, c);
+        gl(g, 8, 21, 16, 21, 1.8f, c);
+        break;
     }
 }
 

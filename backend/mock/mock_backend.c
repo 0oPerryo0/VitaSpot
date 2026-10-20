@@ -727,6 +727,12 @@ void vam_event_release(vam_event *ev)
         free((void *)ev->data);
         ev->data = NULL;
     }
+    if (ev->lyrics) {
+        free(ev->lyrics->lines);
+        free((void *)ev->lyrics->text);
+        free(ev->lyrics);
+        ev->lyrics = NULL;
+    }
 }
 
 void vam_get_auth_state(vam_auth_state *out) { *out = g_auth; }
@@ -777,6 +783,67 @@ uint32_t vam_request_image(const char *url)
         ev.result = VAM_ERR_NOT_FOUND;
     }
     push(&ev, 80 + rnd() % 500);
+    return ev.request_id;
+}
+
+/* Every third track has no lyrics, every third has unsynced ones, the rest
+   are synced across the track. Lines mix Latin, CJK, long lines that wrap
+   and an empty instrumental gap. */
+static const char *const LYRIC_LINES[] = {
+    "Neon rivers running through the night",
+    "\xE5\xA4\x9C\xE7\xA9\xBA\xE3\x81\xAB\xE5\x92\xB2\xE3\x81\x84\xE3\x81\x9F\xE5\x85\x89\xE3\x81\xAE\xE8\x8A\xB1",
+    "We keep on chasing every echo that the city left behind us, and it never ends",
+    "",
+    "Hold the line, hold the light",
+    "\xEB\x84\x88\xEC\x99\x80 \xED\x95\xA8\xEA\xBB\x98 \xEA\xB1\xB7\xEB\x8D\x98 \xEA\xB8\xB8",
+    "Static on the radio, a song we used to know",
+    "\xE7\x9C\xA9\xE3\x81\x97\xE3\x81\x8F\xE3\x81\xA6\xE7\x9B\xAE\xE3\x82\x92\xE9\x96\x89\xE3\x81\x98\xE3\x81\xA6\xE3\x82\x82\xE6\xB6\x88\xE3\x81\x88\xE3\x81\xAA\xE3\x81\x84\xE5\xA4\x8F\xE3\x81\xAE\xE8\x89\xB2\xE3\x81\x8C\xE3\x81\x9A\xE3\x81\xA3\xE3\x81\xA8\xE6\xAE\x8B\xE3\x81\xA3\xE3\x81\xA6\xE3\x82\x8B",
+};
+#define N_LYRIC_LINES ((int)(sizeof(LYRIC_LINES) / sizeof(LYRIC_LINES[0])))
+
+static vam_lyrics *make_lyrics(const mtrack *tr, int idx)
+{
+    int n = 40;
+    vam_lyrics *l = calloc(1, sizeof(*l));
+    l->lines = calloc(n, sizeof(*l->lines));
+    size_t cap = 0;
+    for (int i = 0; i < n; i++)
+        cap += strlen(LYRIC_LINES[i % N_LYRIC_LINES]) + 16;
+    char *text = malloc(cap);
+    size_t len = 0;
+    l->synced = idx % 3 == 0;
+    l->line_count = n;
+    for (int i = 0; i < n; i++) {
+        const char *w = LYRIC_LINES[i % N_LYRIC_LINES];
+        l->lines[i].text_offset = (uint32_t)len;
+        if (l->synced)
+            l->lines[i].start_ms = (uint32_t)((uint64_t)tr->dur * (i + 1) / (n + 2));
+        if (*w)
+            len += (size_t)snprintf(text + len, cap - len, "%s (%d)", w, i + 1) + 1;
+        else
+            text[len++] = 0;
+    }
+    l->text = text;
+    l->text_size = (uint32_t)len;
+    return l;
+}
+
+uint32_t vam_request_lyrics(const char *track_uri)
+{
+    vam_event ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.type = VAM_EV_LYRICS;
+    ev.request_id = g_next_req++;
+    snprintf(ev.uri, sizeof(ev.uri), "%s", track_uri);
+    int idx = strncmp(track_uri, "spotify:track:mock", 18) == 0 ? atoi(track_uri + 18) : -1;
+    if (idx >= 0 && idx < g_ntracks && idx % 3 != 2) {
+        ev.lyrics = make_lyrics(&g_tracks[idx], idx);
+        ev.result = VAM_OK;
+    } else {
+        ev.result = VAM_ERR_NOT_FOUND;
+        snprintf(ev.message, sizeof(ev.message), "No lyrics for this song.");
+    }
+    push(&ev, 150 + rnd() % 600);
     return ev.request_id;
 }
 

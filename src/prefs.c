@@ -80,6 +80,8 @@ void prefs_load(void)
             int k = atoi(v);
             if (k == 96 || k == 160 || k == 320)
                 g_prefs.bitrate = k;
+        } else if (strcmp(line, "lyrics") == 0) {
+            g_prefs.lyrics = atoi(v) != 0;
         }
     }
     fclose(f);
@@ -101,6 +103,7 @@ static void save(void)
     fprintf(f, "dim_after=%d\n", g_prefs.dim_after);
     fprintf(f, "screen_off_after=%d\n", g_prefs.off_after);
     fprintf(f, "audio_quality=%d\n", g_prefs.bitrate);
+    fprintf(f, "lyrics=%d\n", g_prefs.lyrics ? 1 : 0);
     bool ok = !ferror(f);
     if (fclose(f) != 0 || !ok) {
         remove(tmp);

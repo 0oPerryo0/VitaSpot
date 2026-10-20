@@ -40,6 +40,32 @@ extern "C" {
 }
 
 extern "C" {
+    fn sceAVConfigGetSystemVol(volume: *mut c_int) -> c_int;
+    fn sceAVConfigSetSystemVol(volume: c_int) -> c_int;
+}
+
+/// The console's output volume (what the volume buttons change), 0..=30.
+pub fn system_volume_step() -> Option<u32> {
+    let mut volume: c_int = 0;
+    let rc = unsafe { sceAVConfigGetSystemVol(&mut volume) };
+    if rc < 0 {
+        log::warn!("sceAVConfigGetSystemVol failed: {rc:#x}");
+        return None;
+    }
+    Some(volume.max(0) as u32)
+}
+
+/// Set the console's output volume (0..=30). False if the console refused.
+pub fn set_system_volume_step(step: u32) -> bool {
+    let rc = unsafe { sceAVConfigSetSystemVol(step as c_int) };
+    if rc < 0 {
+        log::warn!("sceAVConfigSetSystemVol({step}) failed: {rc:#x}");
+        return false;
+    }
+    true
+}
+
+extern "C" {
     fn sceKernelGetProcessTimeWide() -> u64;
     fn sceKernelChangeThreadPriority(thid: c_int, priority: c_int) -> c_int;
 }

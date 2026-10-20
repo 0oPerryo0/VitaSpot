@@ -21,6 +21,7 @@ mod search;
 mod shared;
 mod state;
 mod util;
+mod volume;
 mod webapi;
 
 pub use abi::VAM_API_VERSION;

@@ -14,11 +14,17 @@
 
 static float clamp01(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
-bool draw_slider(uint32_t id, rectf track, float *frac, float display_frac, float step)
+/* hit_top > 0 keeps the touch area from reaching above that y, e.g. into
+   buttons right above the bar. */
+bool draw_slider(uint32_t id, rectf track, float *frac, float display_frac, float step, float hit_top)
 {
     /* Tall touch area around a thin bar; nothing below the screen edge. */
     float hit_y = track.y + track.h / 2 - SLIDER_HIT_H / 2.0f;
     float hit_h = SLIDER_HIT_H;
+    if (hit_top > hit_y) {
+        hit_h -= hit_top - hit_y;
+        hit_y = hit_top;
+    }
     if (hit_y + hit_h > SCREEN_H)
         hit_h = SCREEN_H - hit_y;
     rectf hit = rect(track.x - 8, hit_y, track.w + 16, hit_h);
@@ -64,13 +70,13 @@ bool draw_slider(uint32_t id, rectf track, float *frac, float display_frac, floa
     return committed;
 }
 
-static void seek_slider(uint32_t id, rectf track, bool times_below, float time_y)
+static void seek_slider(uint32_t id, rectf track, bool times_below, float time_y, float hit_top)
 {
     uint32_t dur = A.player.track.duration_ms;
     uint32_t pos = app_position_ms();
     float display = dur ? (float)pos / dur : 0;
     float step = dur ? 10000.0f / dur : 0;
-    bool committed = draw_slider(id, track, &A.scrub_frac, display, step);
+    bool committed = draw_slider(id, track, &A.scrub_frac, display, step, hit_top);
     float shown = A.slider_owner == id ? A.scrub_frac : display;
     if (committed && dur)
         vam_seek((uint32_t)(A.scrub_frac * dur));
@@ -93,7 +99,7 @@ static void seek_slider(uint32_t id, rectf track, bool times_below, float time_y
 static void volume_slider(uint32_t id, rectf track)
 {
     float display = A.player.volume / 65535.0f;
-    if (draw_slider(id, track, &A.vol_frac, display, 0.08f))
+    if (draw_slider(id, track, &A.vol_frac, display, 0.08f, 0))
         vam_set_volume((uint16_t)(clamp01(A.vol_frac) * 65535));
     else if (A.slider_owner == id)
         vam_set_volume((uint16_t)(clamp01(A.vol_frac) * 65535));  /* live while dragging */
@@ -228,9 +234,10 @@ void screen_player_bar(void)
         app_toggle_saved(t->uri, t->is_saved);
 
     /* Centre: transport + seek. */
-    /* Transport hits end at y + 48, where the seek hit begins. */
-    transport("bar", 500, y + 24, 50, 18, 20);
-    seek_slider(ui_id("bar.seek"), rect(358, y + 68, 284, 4), false, 0);
+    /* Transport hits end at y + 54, where the seek hit begins; the seek hit
+       then runs to the screen edge. */
+    transport("bar", 500, y + 30, 46, 20, 22);
+    seek_slider(ui_id("bar.seek"), rect(358, y + 66, 284, 4), false, 0, y + 54);
 
     /* Right: device / queue / volume. */
     if (!A.player.is_active_device)
@@ -297,7 +304,7 @@ void screen_now_playing(void)
                     52, tr->is_saved ? rgb(C_ACCENT) : rgb(C_TEXT)))
         app_toggle_saved(tr->uri, tr->is_saved);
 
-    seek_slider(ui_id("np.seek"), rect(x0, oy + 262, w, 5), true, oy + 276);
+    seek_slider(ui_id("np.seek"), rect(x0, oy + 262, w, 5), true, oy + 276, 0);
     transport("np", x0 + w / 2, oy + 346, 72, 32, 30);
 
     gfx_icon(ICON_VOLUME, x0 + 10, oy + 420, 20, rgb(C_SUBTEXT));

@@ -152,7 +152,7 @@ float draw_sections(sections_ctx *c, model_page *p, uint32_t first, float y);
 float draw_track_row(sections_ctx *c, const vam_item *it, uint32_t index, float y, uint32_t id_base);
 float draw_entity_row(sections_ctx *c, const vam_item *it, uint32_t index, float y, uint32_t id_base);
 /* Horizontal slider. Returns true when the value is committed. */
-bool draw_slider(uint32_t id, rectf track, float *frac, float display_frac, float step);
+bool draw_slider(uint32_t id, rectf track, float *frac, float display_frac, float step, float hit_top);
 
 /* Screens */
 void screen_home(view *v);

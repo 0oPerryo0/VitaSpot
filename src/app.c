@@ -44,6 +44,7 @@ static void reset_stacks(void)
     view_init(&A.stacks[TAB_HOME][0], VIEW_HOME, "vam:home");
     view_init(&A.stacks[TAB_SEARCH][0], VIEW_SEARCH, "");
     view_init(&A.stacks[TAB_LIBRARY][0], VIEW_LIBRARY, "vam:library");
+    view_init(&A.stacks[TAB_SETTINGS][0], VIEW_SETTINGS, "vam:settings");
     A.tab = TAB_HOME;
     A.np_open = false;
     A.sheet.open = false;
@@ -641,6 +642,7 @@ static void draw_main(void)
     case VIEW_HOME: screen_home(v); break;
     case VIEW_SEARCH: screen_search(v); break;
     case VIEW_LIBRARY: screen_library(v); break;
+    case VIEW_SETTINGS: screen_settings(v); break;
     case VIEW_PAGE: screen_page(v); break;
     }
     ui_pop_clip();

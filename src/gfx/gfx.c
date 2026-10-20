@@ -619,6 +619,17 @@ void gfx_icon(icon_id id, float cx, float cy, float size, color c)
         gfx_circle(GX(g, 7), GY(g, 12), 1.6f * g.u, c);
         gfx_circle(GX(g, 17), GY(g, 12), 1.6f * g.u, c);
         break;
+    case ICON_SETTINGS:
+    case ICON_SETTINGS_BOLD: {
+        /* Gear: a ring with eight teeth. */
+        float t = id == ICON_SETTINGS_BOLD ? 2.8f : 2.0f;
+        gfx_arc(GX(g, 12), GY(g, 12), 6 * g.u, t * g.u, 0, (float)(2 * M_PI), c);
+        for (int i = 0; i < 8; i++) {
+            float a = i * (float)M_PI / 4, ca = cosf(a), sa = sinf(a);
+            gl(g, 12 + ca * 6.5f, 12 + sa * 6.5f, 12 + ca * 10, 12 + sa * 10, 3.2f, c);
+        }
+        break;
+    }
     }
 }
 

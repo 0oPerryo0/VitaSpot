@@ -169,11 +169,12 @@ static void transport(const char *prefix, float cx, float cy, float gap, float p
 
 void screen_sidebar(void)
 {
-    static const char *const labels[TAB_COUNT] = { "Home", "Search", "Library" };
+    static const char *const labels[TAB_COUNT] = { "Home", "Search", "Library", "Settings" };
     static const icon_id icons[TAB_COUNT][2] = {
         { ICON_HOME, ICON_HOME_FILLED },
         { ICON_SEARCH, ICON_SEARCH_BOLD },
         { ICON_LIBRARY, ICON_LIBRARY_BOLD },
+        { ICON_SETTINGS, ICON_SETTINGS_BOLD },
     };
     gfx_rect(rect(0, 0, SIDEBAR_W, SCREEN_H - PLAYER_H), rgb(C_BG_DEEP));
 

@@ -12,7 +12,7 @@
  * lacks (e.g. Chinese/Japanese, then Korean). Fallbacks use fake bold. */
 enum { FACE_REG, FACE_BOLD, FACE_FB_REG, FACE_FB_BOLD, FACE_FB2_REG, FACE_FB2_BOLD, FACE_COUNT };
 
-static const int SIZES[] = { 11, 13, 15, 18, 24, 32, 44 };
+static const int SIZES[] = { 14, 16, 19, 22, 24, 32, 44 };
 #define NUM_SIZES ((int)(sizeof(SIZES) / sizeof(SIZES[0])))
 
 typedef struct face {

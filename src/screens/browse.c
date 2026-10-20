@@ -47,7 +47,7 @@ void screen_home(view *v)
     float y = CONTENT_Y + 22 - v->scroll.pos;
     text_draw(greeting(), CONTENT_X + PAD, y, FS_XXL, FW_BOLD, rgb(C_TEXT), CONTENT_W - 2 * PAD);
     y += 52;
-    sections_ctx c = { v, NULL, false, true, vp, CONTENT_X + PAD, CONTENT_W - 2 * PAD };
+    sections_ctx c = { v, NULL, false, true, vp, CONTENT_X + PAD - ROW_INSET, CONTENT_W - 2 * PAD + 2 * ROW_INSET };
     y = draw_sections(&c, v->page, 0, y);
     v->content_h = y + v->scroll.pos - CONTENT_Y + 24;
     ui_scroll_end();
@@ -57,9 +57,9 @@ void screen_home(view *v)
 
 static void search_bar(view *v)
 {
-    rectf r = rect(CONTENT_X + PAD, 16, CONTENT_W - 2 * PAD, 44);
+    rectf r = rect(CONTENT_X + PAD, 12, CONTENT_W - 2 * PAD, 48);
     ui_res res = ui_item(ui_id("search.bar"), r, 0);
-    gfx_rrect(r, 22, rgb(res.pressed ? 0xE6E6E6 : 0xFFFFFF));
+    gfx_rrect(r, 24, rgb(res.pressed ? 0xE6E6E6 : 0xFFFFFF));
     gfx_icon(ICON_SEARCH_BOLD, r.x + 26, r.y + r.h / 2, 22, rgb(0x121212));
     float tx = r.x + 50, tw = r.w - 100;
     const char *shown = A.typing ? A.edit : v->query;
@@ -73,12 +73,12 @@ static void search_bar(view *v)
             gfx_rect(rect(tx, r.y + 12, 2, r.h - 24), rgb(0x121212));
     }
     if (res.focused)
-        draw_focus_ring(r, 22);
+        draw_focus_ring(r, 24);
     if (res.clicked && !A.typing)
         app_begin_typing();
 
     if (shown[0] && !A.typing) {
-        if (icon_button(ui_id("search.clear"), ICON_CLOSE, r.x + r.w - 26, r.y + r.h / 2, 18, 36, rgb(0x121212)))
+        if (icon_button(ui_id("search.clear"), ICON_CLOSE, r.x + r.w - 26, r.y + r.h / 2, 20, TOUCH_MIN, rgb(0x121212)))
             app_set_search("");
     }
 }
@@ -94,20 +94,20 @@ static void recent_searches(view *v, rectf vp)
         text_draw_aligned("Play what you love", CONTENT_X + CONTENT_W / 2.0f, cy, FS_L, FW_BOLD,
                           rgb(C_TEXT), 0, ALIGN_CENTER);
         text_draw_aligned("Search for songs, artists, albums and playlists.", CONTENT_X + CONTENT_W / 2.0f,
-                          cy + 28, FS_S, FW_REGULAR, rgb(C_SUBTEXT), 0, ALIGN_CENTER);
+                          cy + 32, FS_S, FW_REGULAR, rgb(C_SUBTEXT), 0, ALIGN_CENTER);
         v->content_h = 0;
         ui_scroll_end();
         return;
     }
     text_draw("Recent searches", x, y, FS_L, FW_BOLD, rgb(C_TEXT), w);
-    y += 36;
+    y += 40;
     for (int i = 0; i < RECENT_SEARCHES && A.recent[i][0]; i++) {
-        rectf r = rect(x, y, w, 48);
+        rectf r = rect(x, y, w, 56);
         ui_res res = ui_item(ui_idx(ui_id("recent"), i), r, 0);
         if (res.pressed || res.focused)
             gfx_rrect(r, 6, rgb(res.pressed ? C_SURFACE_HI2 : C_SURFACE_HI));
-        gfx_icon(ICON_SEARCH, x + 22, y + 24, 18, rgb(C_SUBTEXT));
-        text_draw_vc(A.recent[i], x + 48, y + 24, FS_M, FW_REGULAR, rgb(C_TEXT), w - 60);
+        gfx_icon(ICON_SEARCH, x + 22, y + 28, 20, rgb(C_SUBTEXT));
+        text_draw_vc(A.recent[i], x + 50, y + 28, FS_M, FW_REGULAR, rgb(C_TEXT), w - 60);
         if (res.focused)
             draw_focus_ring(r, 6);
         if (res.clicked) {
@@ -115,7 +115,7 @@ static void recent_searches(view *v, rectf vp)
             snprintf(q, sizeof(q), "%s", A.recent[i]);
             app_set_search(q);
         }
-        y += 48;
+        y += 56;
     }
     v->content_h = y + v->scroll.pos - vp.y + 16;
     ui_scroll_end();
@@ -131,7 +131,7 @@ void screen_search(view *v)
         ui_push_clip(vp);
         ui_scroll_begin(&v->scroll, vp, v->content_h, AXIS_Y, true);
         float y = vp.y - v->scroll.pos;
-        sections_ctx c = { v, NULL, false, true, vp, CONTENT_X + PAD, CONTENT_W - 2 * PAD };
+        sections_ctx c = { v, NULL, false, true, vp, CONTENT_X + PAD - ROW_INSET, CONTENT_W - 2 * PAD + 2 * ROW_INSET };
         y = draw_sections(&c, v->page, 0, y);
         bool empty = true;
         for (uint32_t i = 0; i < v->page->section_count; i++)
@@ -143,7 +143,7 @@ void screen_search(view *v)
             text_draw_aligned(msg, CONTENT_X + CONTENT_W / 2.0f, vp.y + 80, FS_L, FW_BOLD, rgb(C_TEXT),
                               CONTENT_W - 2 * PAD, ALIGN_CENTER);
             text_draw_aligned("Check the spelling, or try different keywords.", CONTENT_X + CONTENT_W / 2.0f,
-                              vp.y + 110, FS_S, FW_REGULAR, rgb(C_SUBTEXT), 0, ALIGN_CENTER);
+                              vp.y + 114, FS_S, FW_REGULAR, rgb(C_SUBTEXT), 0, ALIGN_CENTER);
         }
         v->content_h = y + v->scroll.pos - vp.y + 24;
         ui_scroll_end();
@@ -177,7 +177,7 @@ void screen_library(view *v)
         ui_push_clip(vp);
         ui_scroll_begin(&v->scroll, vp, v->content_h, AXIS_Y, true);
         float y = vp.y + 4 - v->scroll.pos;
-        sections_ctx c = { v, NULL, false, true, vp, CONTENT_X + PAD - 8, CONTENT_W - 2 * PAD + 16 };
+        sections_ctx c = { v, NULL, false, true, vp, CONTENT_X + PAD - ROW_INSET, CONTENT_W - 2 * PAD + 2 * ROW_INSET };
         model_section *s = &v->page->sections[0];
         uint32_t base = ui_id("library.rows");
         int shown = 0;
@@ -202,7 +202,7 @@ void screen_library(view *v)
     for (int f = 1; f < LIB_FILTER_COUNT; f++) {
         float w = 0;
         bool active = v->filter == f;
-        if (pill_button(ui_idx(ui_id("library.filter"), f), labels[f], x, 58, active, &w)) {
+        if (pill_button(ui_idx(ui_id("library.filter"), f), labels[f], x, 56, active, &w)) {
             v->filter = active ? LIB_ALL : f;
             v->scroll.pos = 0;
         }

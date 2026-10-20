@@ -134,20 +134,25 @@ bool draw_error(rectf area, const char *msg);
 const char *kind_label(int kind);
 
 /* Sections renderer: sections.c */
+/* Rows' press highlight reaches this far left of the content edge, so every
+   sections_ctx starts at CONTENT_X + PAD - ROW_INSET and art, titles and
+   cards all line up on CONTENT_X + PAD. */
+#define ROW_INSET 8
+
 typedef struct sections_ctx {
     view *v;
     const char *context_uri;   /* play context for LIST rows, or NULL   */
     bool numbered;             /* show 1,2,3 instead of art             */
     bool show_art;
     rectf viewport;            /* visible content area                  */
-    float x, w;                /* horizontal extent                     */
+    float x, w;                /* row extent, ROW_INSET past the edges  */
 } sections_ctx;
 
 float draw_sections(sections_ctx *c, model_page *p, uint32_t first, float y);
 float draw_track_row(sections_ctx *c, const vam_item *it, uint32_t index, float y, uint32_t id_base);
 float draw_entity_row(sections_ctx *c, const vam_item *it, uint32_t index, float y, uint32_t id_base);
 /* Horizontal slider. Returns true when the value is committed. */
-bool draw_slider(uint32_t id, rectf track, float *frac, float display_frac, float step);
+bool draw_slider(uint32_t id, rectf track, float *frac, float display_frac, float step, float hit_top);
 
 /* Screens */
 void screen_home(view *v);

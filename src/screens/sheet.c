@@ -77,7 +77,7 @@ void screen_sheet(void)
 
     option opts[6];
     int n = build_options(&s->item, opts);
-    const float row_h = 50, head_h = 80, w = 520;
+    const float row_h = 58, head_h = 84, w = 560;
     float h = head_h + n * row_h + 16;
     float x = (SCREEN_W - w) / 2, y = SCREEN_H - h * e;
     rectf panel = rect(x, y, w, h + 20);
@@ -85,9 +85,9 @@ void screen_sheet(void)
     gfx_rrect(panel, 14, rgb(C_SURFACE_HI));
 
     float rad = s->item.kind == VAM_KIND_ARTIST ? 26 : 4;
-    draw_cover(s->item.image_url, rect(x + 18, y + 14, 52, 52), rad, s->item.kind, s->item.title);
-    text_draw(s->item.title, x + 84, y + 18, FS_M, FW_BOLD, rgb(C_TEXT), w - 100);
-    text_draw(s->item.subtitle, x + 84, y + 40, FS_S, FW_REGULAR, rgb(C_SUBTEXT), w - 100);
+    draw_cover(s->item.image_url, rect(x + 18, y + 16, 52, 52), rad, s->item.kind, s->item.title);
+    text_draw(s->item.title, x + 84, y + 17, FS_M, FW_BOLD, rgb(C_TEXT), w - 100);
+    text_draw(s->item.subtitle, x + 84, y + 44, FS_S, FW_REGULAR, rgb(C_SUBTEXT), w - 100);
     gfx_rect(rect(x, y + head_h - 1, w, 1), rgb(C_DIVIDER));
 
     for (int i = 0; i < n; i++) {
@@ -96,8 +96,8 @@ void screen_sheet(void)
         if (res.pressed || res.focused)
             gfx_rrect(r, 6, rgb(C_SURFACE_HI2));
         bool green = opts[i].a == ACT_SAVE && s->item.is_saved;
-        gfx_icon(opts[i].icon, r.x + 26, r.y + r.h / 2, 22, green ? rgb(C_ACCENT) : rgb(C_SUBTEXT));
-        text_draw_vc(opts[i].label, r.x + 56, r.y + r.h / 2, FS_M, FW_REGULAR, rgb(C_TEXT), r.w - 70);
+        gfx_icon(opts[i].icon, r.x + 26, r.y + r.h / 2, 24, green ? rgb(C_ACCENT) : rgb(C_SUBTEXT));
+        text_draw_vc(opts[i].label, r.x + 60, r.y + r.h / 2, FS_M, FW_REGULAR, rgb(C_TEXT), r.w - 70);
         if (res.focused)
             draw_focus_ring(r, 6);
         if (res.clicked && s->open)

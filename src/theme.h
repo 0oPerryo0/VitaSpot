@@ -6,12 +6,17 @@
 #define SCREEN_H 544
 
 #define SIDEBAR_W 76
-#define PLAYER_H 68
+#define PLAYER_H 84
 #define CONTENT_X SIDEBAR_W
 #define CONTENT_Y 0
 #define CONTENT_W (SCREEN_W - SIDEBAR_W)
 #define CONTENT_H (SCREEN_H - PLAYER_H)
 #define PAD 20
+
+/* Smallest touch target. The Vita's 5" 220 ppi panel makes 1 px ~0.115 mm,
+   so 48 px is about 5.5 mm. */
+#define TOUCH_MIN 48
+#define SLIDER_HIT_H 44
 
 /* Palette. Dark UI in the style of the official app, own accent tone. */
 #define C_BG          0x121212
@@ -29,11 +34,12 @@
 #define C_LIKED_TOP   0x4B2BD8
 #define C_LIKED_BOT   0x8FB9C9
 
-/* Font sizes in px. text.c rounds to the nearest preloaded size. */
-#define FS_XS   11
-#define FS_S    13
-#define FS_M    15
-#define FS_L    18
+/* Font sizes in px. text.c rounds to the nearest preloaded size,
+   so keep its SIZES table in step. */
+#define FS_XS   14
+#define FS_S    16
+#define FS_M    19
+#define FS_L    22
 #define FS_XL   24
 #define FS_XXL  32
 #define FS_HUGE 44

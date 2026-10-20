@@ -3,6 +3,7 @@
 #include "../platform/platform.h"
 
 #include <SDL_image.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -11,6 +12,7 @@
 #define UPLOADS_PER_FRAME 2 /* decoded surfaces turned into textures      */
 #define UPLOAD_BUDGET_MS 3.0
 #define MAX_DIM 320         /* larger images are box-downscaled           */
+#define CORNER_FRAC 0.04f   /* baked corner radius, fraction of the side  */
 #define JOB_N (IMG_N * 2)   /* decode jobs outstanding, stale ones included */
 
 typedef enum { IS_EMPTY, IS_WANTED, IS_LOADING, IS_DOWNLOADED, IS_DECODING, IS_READY, IS_FAILED } img_state;
@@ -186,6 +188,33 @@ static color dominant(SDL_Surface *s)
     return c;
 }
 
+/* Round the corners through alpha, antialiased. gfx_image draws cover art as
+ * a plain quad, so this is where the rounding lives; the radius scales with
+ * the drawn size (about 2 px on a 48 px row, 6 px on a 144 px card). */
+static void round_corners(SDL_Surface *s)
+{
+    float rad = (s->w < s->h ? s->w : s->h) * CORNER_FRAC;
+    int n = (int)ceilf(rad);
+    if (n < 1)
+        return;
+    for (int y = 0; y < n; y++) {
+        for (int x = 0; x < n; x++) {
+            float dx = rad - (x + 0.5f), dy = rad - (y + 0.5f);
+            float cov = rad - sqrtf(dx * dx + dy * dy) + 0.5f;
+            if (cov >= 1)
+                continue;
+            if (cov < 0)
+                cov = 0;
+            int xs[2] = { x, s->w - 1 - x }, ys[2] = { y, s->h - 1 - y };
+            for (int i = 0; i < 4; i++) {
+                Uint32 *p = (Uint32 *)((Uint8 *)s->pixels + ys[i / 2] * s->pitch) + xs[i % 2];
+                Uint32 a = (Uint32)(((*p >> 24) & 0xFF) * cov);
+                *p = (*p & 0x00FFFFFF) | (a << 24);
+            }
+        }
+    }
+}
+
 /* Thread-safe: touches no renderer state. */
 static SDL_Surface *decode_surface(const uint8_t *data, uint32_t size, color *avg)
 {
@@ -200,6 +229,7 @@ static SDL_Surface *decode_surface(const uint8_t *data, uint32_t size, color *av
     while (s->w > MAX_DIM * 2 - 40 && s->h > MAX_DIM * 2 - 40)
         s = downscale_half(s);
     *avg = dominant(s);
+    round_corners(s);
     return s;
 }
 

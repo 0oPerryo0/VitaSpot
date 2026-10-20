@@ -12,9 +12,9 @@ own branding. **Spotify Premium is required.**
 
 ![Home](docs/screenshots/home.png)
 
-| Liked Songs | Artist |
+| Playlist | Artist |
 |---|---|
-| ![Liked Songs](docs/screenshots/liked.png) | ![Artist](docs/screenshots/artist.png) |
+| ![Playlist](docs/screenshots/playlist.png) | ![Artist](docs/screenshots/artist.png) |
 
 ![Now Playing](docs/screenshots/player.png)
 
@@ -33,6 +33,9 @@ own branding. **Spotify Premium is required.**
 - **Like / save** songs, albums and artists.
 - **CJK text**: Chinese, Japanese and Korean titles render through a bundled
   Noto Sans CJK fallback font.
+- **Sized for the Vita**: text and touch targets are scaled for the 5-inch
+  screen. Buttons have at least a 48 px touch area, and sliders can be grabbed
+  well above or below their thin bar.
 
 ## Installing and signing in
 

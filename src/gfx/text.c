@@ -36,6 +36,7 @@ typedef struct entry {
     int max_w;
     SDL_Texture *tex;
     int w, h;
+    int16_t oy;             /* draw offset from y, see render() */
     uint32_t used;
     int16_t next;           /* bucket chain, -1 ends it */
 } entry;
@@ -421,10 +422,16 @@ static int measure(const char *s, int si, int weight)
     return total;
 }
 
-static SDL_Surface *render(const char *s, int si, int weight)
+/* Every string's baseline sits at y + the primary font's ascent, whatever
+ * fonts its runs use, so CJK text lines up with Latin text drawn at the same
+ * y. The surface's baseline is at the largest ascent of the runs' fonts, so a
+ * fallback that reaches higher than the primary keeps its tops; *oy is how
+ * far from y to draw the surface (negative when it reaches above the line). */
+static SDL_Surface *render(const char *s, int si, int weight, int *oy)
 {
     run runs[MAX_RUNS];
     int n = split_runs(s, si, weight, runs);
+    *oy = 0;
     if (n == 0)
         return NULL;
     SDL_Color white = { 255, 255, 255, 255 };
@@ -445,6 +452,8 @@ static SDL_Surface *render(const char *s, int si, int weight)
             if (desc > max_desc) max_desc = desc;
         }
     }
+    TTF_Font *prim = font(weight ? FACE_BOLD : FACE_REG, si);
+    *oy = (prim ? TTF_FontAscent(prim) : max_asc) - max_asc;
     if (n == 1)
         return parts[0];
     SDL_Surface *out = NULL;
@@ -579,7 +588,9 @@ static entry *lookup(const char *s, int si, int weight, int max_w)
         ellipsize(s, si, weight, max_w, fitted, sizeof(fitted));
         src = fitted;
     }
-    SDL_Surface *surf = render(src, si, weight);
+    int oy;
+    SDL_Surface *surf = render(src, si, weight, &oy);
+    e->oy = (int16_t)oy;
     if (surf) {
         e->tex = SDL_CreateTextureFromSurface(gfx_renderer(), surf);
         e->w = surf->w;
@@ -625,13 +636,14 @@ bool text_vmetrics(const char *s, int size, font_weight w, float *top, float *bo
     int n = split_runs(s, size_index(size), w, runs);
     if (g_fb_deferred)
         return false;
-    /* render() puts the baseline at the largest ascent of the runs' fonts. */
-    int asc = 0, hi = INT_MIN, lo = 0;
+    /* text_draw puts the baseline at the primary font's ascent. */
+    TTF_Font *prim = font(w ? FACE_BOLD : FACE_REG, size_index(size));
+    if (!prim)
+        return false;
+    int asc = TTF_FontAscent(prim), hi = INT_MIN, lo = 0;
     for (int i = 0; i < n; i++) {
         if (!runs[i].f)
             continue;
-        if (TTF_FontAscent(runs[i].f) > asc)
-            asc = TTF_FontAscent(runs[i].f);
         const char *p = runs[i].start, *end = runs[i].start + runs[i].len;
         while (p < end) {
             uint32_t cp = utf8_next(&p);
@@ -670,7 +682,7 @@ int text_draw(const char *s, float x, float y, int size, font_weight w, color c,
         return e->w; /* not rendered yet (budget) or blank */
     SDL_SetTextureColorMod(e->tex, c.r, c.g, c.b);
     SDL_SetTextureAlphaMod(e->tex, c.a);
-    SDL_FRect dst = { floorf(x + 0.5f), floorf(y + 0.5f), (float)e->w, (float)e->h };
+    SDL_FRect dst = { floorf(x + 0.5f), floorf(y + 0.5f) + e->oy, (float)e->w, (float)e->h };
     SDL_RenderCopyF(gfx_renderer(), e->tex, NULL, &dst);
     return e->w;
 }

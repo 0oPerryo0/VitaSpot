@@ -2,8 +2,9 @@
 
 `contract_test.c` drives `include/vam_backend.h` headlessly: init, wait for
 login, request every virtual page, page through a long playlist, play, seek,
-pause/resume, shuffle/repeat, queue, like/unlike, image download and
-cancellation.
+pause/resume, shuffle/repeat, queue, like/unlike, image download, lyrics
+(reply shape, line offsets, synced start times in order, NOT_FOUND for an
+episode) and cancellation.
 
 It is written so it can run against the mock backend **and** the real
 librespot backend:

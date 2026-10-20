@@ -24,13 +24,15 @@ int text_measure(const char *s, int size, font_weight w);
 bool text_fonts_ready(void);
 /* Where text_draw(s, x, y, ...) puts the body of the text, relative to y:
  * *top is the top of the tallest glyph, *bottom the baseline, or lower where
- * CJK characters reach below it (Latin descenders don't count). Text with CJK
- * sits lower, on the fallback font's ascent. False until the fonts can
- * measure s (see text_fonts_ready). */
+ * CJK characters reach below it (Latin descenders don't count). Every script
+ * shares the primary font's baseline. False until the fonts can measure s
+ * (see text_fonts_ready). */
 bool text_vmetrics(const char *s, int size, font_weight w, float *top, float *bottom);
 /* Width of `s`, after ellipsizing to max_w when max_w > 0. */
 int text_width(const char *s, int size, font_weight w, float max_w);
-/* Draws with the top of the line box at y. Returns drawn width. */
+/* Draws with the top of the line box at y and the baseline at y plus the
+ * primary font's ascent, for every script. Glyphs taller than the primary
+ * font may reach above y. Returns drawn width. */
 int text_draw(const char *s, float x, float y, int size, font_weight w, color c, float max_w);
 int text_draw_aligned(const char *s, float x, float y, int size, font_weight w, color c,
                       float max_w, text_align align);

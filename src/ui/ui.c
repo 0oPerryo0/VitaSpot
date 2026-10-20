@@ -12,6 +12,7 @@
 #define LONG_PRESS_MS 520
 #define REPEAT_DELAY_MS 340
 #define REPEAT_RATE_MS 85
+#define COMBO_WINDOW_MS 150
 
 typedef struct scroll_ctx {
     scroller *s;
@@ -57,6 +58,15 @@ static struct {
     uint64_t hold_since[BTN_COUNT], last_repeat[BTN_COUNT];
     float stick_x, stick_y;
 
+    /* combo */
+    btn combo[2];
+    bool deferred[BTN_COUNT];
+    uint64_t deferred_at[BTN_COUNT];
+    bool combo_fired;
+    bool capturing, captured;
+    bool cap_ignore[BTN_COUNT]; /* held when capture began (e.g. Cross on "Change") */
+    btn cap[2];
+
     /* focus */
     uint32_t focus;
     bool focus_visible;
@@ -78,6 +88,84 @@ void ui_init(void)
 {
     memset(&g, 0, sizeof(g));
     g.enabled = true;
+    g.combo[0] = g.combo[1] = BTN_COUNT;
+}
+
+void ui_set_combo(btn a, btn b)
+{
+    g.combo[0] = a;
+    g.combo[1] = b;
+    memset(g.deferred, 0, sizeof(g.deferred));
+}
+
+bool ui_combo_fired(void) { return g.combo_fired; }
+
+void ui_capture_combo(bool on)
+{
+    g.capturing = on;
+    g.captured = false;
+    memcpy(g.cap_ignore, g.held, sizeof(g.cap_ignore));
+}
+
+bool ui_capturing_combo(void) { return g.capturing; }
+
+bool ui_captured_combo(btn *a, btn *b)
+{
+    if (!g.captured)
+        return false;
+    g.captured = false;
+    *a = g.cap[0];
+    *b = g.cap[1];
+    return true;
+}
+
+static void apply_combo(void)
+{
+    g.combo_fired = false;
+    if (g.capturing) {
+        int held[2] = { -1, -1 }, n = 0;
+        for (int b = 0; b < BTN_COUNT; b++) {
+            g.pressed_b[b] = false;
+            if (!g.held[b])
+                g.cap_ignore[b] = false;
+            else if (!g.cap_ignore[b] && n < 2)
+                held[n++] = b;
+        }
+        if (n == 2) {
+            g.cap[0] = (btn)held[0];
+            g.cap[1] = (btn)held[1];
+            g.captured = true;
+            g.capturing = false;
+        }
+        return;
+    }
+    btn a = g.combo[0], b = g.combo[1];
+    if (a >= BTN_COUNT || b >= BTN_COUNT)
+        return;
+    const btn pair[2] = { a, b };
+    for (int i = 0; i < 2; i++) {
+        btn x = pair[i];
+        if (g.pressed_b[x]) {
+            g.pressed_b[x] = false;
+            if (!g.deferred[x]) {
+                g.deferred[x] = true;
+                g.deferred_at[x] = g.now;
+            }
+        }
+    }
+    if (g.held[a] && g.held[b] && (g.deferred[a] || g.deferred[b])) {
+        g.deferred[a] = g.deferred[b] = false;
+        g.combo_fired = true;
+        return;
+    }
+    /* No partner in time (or already let go): act as a single press. */
+    for (int i = 0; i < 2; i++) {
+        btn x = pair[i];
+        if (g.deferred[x] && (!g.held[x] || g.now - g.deferred_at[x] >= COMBO_WINDOW_MS)) {
+            g.deferred[x] = false;
+            g.pressed_b[x] = true;
+        }
+    }
 }
 
 uint64_t ui_ticks(void) { return g.now; }
@@ -411,6 +499,8 @@ void ui_begin_frame(float dt)
             g.last_repeat[b] = g.now;
         }
     }
+
+    apply_combo();
 
     g.slide = 0;
     if (g.text_mode)

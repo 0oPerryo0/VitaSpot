@@ -24,8 +24,18 @@ typedef enum btn {
 void platform_init(void);
 void platform_shutdown(void);
 
-/* Called once per frame. `keep_awake` stops auto-suspend while audio plays. */
+/* Called once per frame. `keep_awake` stops auto-suspend while audio plays.
+ * The system's own screen dimming is held off: the app dims it (power.c). */
 void platform_frame(bool keep_awake);
+
+typedef enum screen_level { SCREEN_ON, SCREEN_DIM, SCREEN_OFF } screen_level;
+/* Backlight: full (the user's brightness setting), dimmed, or off. Desktop
+ * has no backlight; the app shades the window instead. */
+void platform_set_screen(screen_level level);
+
+/* Physical button name ("Cross", "L", "Start"...), following the console's
+ * Enter-button setting for Confirm / Back. */
+const char *platform_btn_label(btn b);
 
 bool platform_is_vita(void);
 

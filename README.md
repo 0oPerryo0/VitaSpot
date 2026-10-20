@@ -31,6 +31,9 @@ own branding. **Spotify Premium is required.**
 - **Your profile**: profile name and picture, playlist owners shown by
   profile name, Spotify-style 2x2 covers for playlists without a picture.
 - **Like / save** songs, albums and artists.
+- **Screen power**: a button combo turns the screen off while music keeps
+  playing, and the screen dims and turns off after a while without input.
+  The combo and both timers are set in Settings.
 - **CJK text**: Chinese, Japanese and Korean titles render through a bundled
   Noto Sans CJK fallback font.
 - **Sized for the Vita**: text and touch targets are scaled for the 5-inch
@@ -74,6 +77,7 @@ screen.
 | L / R | Previous / next track |
 | Start | Now Playing |
 | Select | Queue |
+| Select + Start | Screen off, music keeps playing; any button turns it back on (changeable in Settings) |
 
 ### Desktop
 
@@ -87,6 +91,7 @@ screen.
 | Q / E | L / R | Previous / next track |
 | N | Start | Now Playing |
 | M | Select | Queue |
+| M + N | Select + Start | Screen off (shades the window) |
 
 Mouse: click, drag to scroll, wheel, long-press for the menu.
 
@@ -212,7 +217,7 @@ uploads)`).
 ## Development notes
 
 - **Scripted UI runs (desktop):** `VAM_SCRIPT=script.txt ./build/VitaSpot.exe`
-  replays input and saves frames. The commands are `wait`, `key`, `text`,
+  replays input and saves frames. The commands are `wait`, `key`, `keydown`/`keyup`, `text`,
   `click`, `drag`, `touchdrag` (Vita-style finger events), `shot` and `quit`,
   documented in `src/platform/devscript.c`. Combine with `VAM_MOCK_INSTANT=1`
   to skip login.

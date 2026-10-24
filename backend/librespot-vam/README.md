@@ -234,7 +234,7 @@ listener.
 |---|---|
 | `credentials.json` | reusable librespot credentials |
 | `volume` | last volume (librespot cache) |
-| `cache/audio/` | librespot audio cache, size-capped at 200 MB |
+| `cache/audio/` | librespot audio cache, capped at `vam_config.audio_cache_mb` (256 MB if 0) |
 | `cache/img/` | image cache used by `vam_request_image`, capped at 30 MB |
 | `tmp/` | temporary files used by librespot while streaming |
 | `vam.log` | Vita only: backend log (truncated on each start) |

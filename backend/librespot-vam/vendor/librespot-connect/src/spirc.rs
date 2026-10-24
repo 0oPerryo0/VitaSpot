@@ -120,6 +120,9 @@ struct SpircTask {
 
     /// VitaSpot: shared read-only snapshot handed out through [Spirc::snapshot].
     shared_snapshot: Arc<Mutex<ConnectSnapshot>>,
+
+    /// VitaSpot: tracks that failed to load since the last one played.
+    unavailable_in_a_row: u32,
 }
 
 static SPIRC_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -153,6 +156,11 @@ const CONTEXT_FETCH_THRESHOLD: usize = 2;
 const VOLUME_UPDATE_DELAY: Duration = Duration::from_millis(500);
 // to reduce updates to remote, we group some request by waiting for a set amount of time
 const UPDATE_STATE_DELAY: Duration = Duration::from_millis(200);
+
+// VitaSpot: stop playback after this many tracks in a row failed to load.
+// When Spotify refuses every track (e.g. audio key errors), skipping on
+// never ends: autoplay keeps refilling the queue.
+const UNAVAILABLE_STOP_AFTER: u32 = 3;
 
 /// The spotify connect handle
 #[derive(Clone)]
@@ -283,6 +291,7 @@ impl Spirc {
 
             spirc_id,
             shared_snapshot: Arc::clone(&shared_snapshot),
+            unavailable_in_a_row: 0,
         };
 
         let spirc = Spirc {
@@ -802,6 +811,7 @@ impl SpircTask {
             PlayerEvent::Playing { position_ms, .. }
             | PlayerEvent::PositionCorrection { position_ms, .. } => {
                 trace!("==> Playing");
+                self.unavailable_in_a_row = 0;
                 let new_nominal_start_time = self.now_ms() - position_ms as i64;
                 match self.play_status {
                     SpircPlayStatus::Playing {
@@ -866,7 +876,17 @@ impl SpircTask {
             PlayerEvent::Unavailable { track_id, .. } => {
                 self.handle_unavailable(&track_id)?;
                 if self.connect_state.current_track(|t| &t.uri) == &track_id.to_uri()? {
-                    self.handle_next(None)?
+                    // VitaSpot: a failed preload doesn't count, only the track being loaded.
+                    self.unavailable_in_a_row += 1;
+                    if self.unavailable_in_a_row >= UNAVAILABLE_STOP_AFTER {
+                        warn!(
+                            "{} tracks in a row failed to load, stopping playback",
+                            self.unavailable_in_a_row
+                        );
+                        self.handle_stop();
+                    } else {
+                        self.handle_next(None)?
+                    }
                 }
             }
             _ => return Ok(()),

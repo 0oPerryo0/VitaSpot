@@ -85,6 +85,14 @@ before the change is loaded again at the new quality.
   for a vendored crate, so the script sets the four `cargo:rustc-env` values
   that `src/version.rs` reads. The now unused build dependencies were removed
   from `Cargo.toml`.
+* `src/cache.rs` - `Cache::new` with a size limit listed every file in the
+  audio cache (one stat each, ~25 ms on the Vita) before returning, and the
+  engine opens the cache before it starts Zeroconf, so a full cache held up
+  the login screen and auto-login for seconds. `FsSizeLimiter::new` now runs
+  that scan on a background thread (`audio-cache-scan`, 128 KiB stack) and
+  merges the result; files saved or opened meanwhile are tracked as usual,
+  and `touch()` adds a file the scan hasn't listed yet instead of logging
+  "limiter could not touch". Pruning starts once the scan is done.
 
 No protocol, authentication or playback behaviour was changed.
 
@@ -112,6 +120,11 @@ Changes:
     Vita's volume buttons, dragging the slider) kept `update_volume` set,
     and that blocks context resolving: tapping another song did nothing until
     the volume stopped changing.
+  * playback stops after `UNAVAILABLE_STOP_AFTER` (3) tracks in a row fail to
+    load (`unavailable_in_a_row`, reset when a track plays; failed preloads
+    don't count). Upstream skipped to the next track on every failure, and
+    when Spotify refuses every track (audio key errors, librespot#1649)
+    autoplay kept refilling the queue, so it skipped forever.
 * `src/state/context.rs` - `valid_resolve_uri` also rejects
   `spotify:web-api`, the placeholder uri of a context built from plain tracks
   (`LoadRequest::from_tracks`, used for a song played from search). Upstream

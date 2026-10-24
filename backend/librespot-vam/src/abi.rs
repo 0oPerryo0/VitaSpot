@@ -9,7 +9,7 @@
 
 use std::os::raw::{c_char, c_void};
 
-pub const VAM_API_VERSION: u32 = 2;
+pub const VAM_API_VERSION: u32 = 3;
 
 pub const VAM_URI_MAX: usize = 96;
 pub const VAM_TEXT_MAX: usize = 192;
@@ -241,6 +241,7 @@ pub struct vam_config {
     pub initial_volume: u16,
     pub normalize_volume: u8,
     pub reserved: u8,
+    pub audio_cache_mb: u32,
 }
 
 /// Opaque marker used to keep `c_void` referenced on all targets.

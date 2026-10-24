@@ -122,26 +122,32 @@ fn scan(dir: &Path) -> Vec<(String, u64, u64)> {
     entries
 }
 
-/// Delete the least recently used files until the cache fits max_bytes.
+/// Once the cache is over max_bytes, delete the least recently used files
+/// down to 90% of it, so the sort runs once per batch rather than on every
+/// put of a full cache.
 fn prune(dir: &Path, max_bytes: u64, index: &Index) {
-    let Ok(mut index) = index.lock() else {
-        return;
-    };
-    let mut total: u64 = index.iter().map(|(_, size, _)| *size).sum();
-    if total <= max_bytes {
-        return;
-    }
-    index.sort_by_key(|(_, _, used)| *used);
-    let mut remaining = Vec::new();
-    for entry in index.drain(..) {
-        if total > max_bytes {
-            total = total.saturating_sub(entry.1);
-            let _ = fs::remove_file(path_in(dir, &entry.0));
-        } else {
-            remaining.push(entry);
+    let doomed: Vec<_> = {
+        let Ok(mut index) = index.lock() else {
+            return;
+        };
+        let mut total: u64 = index.iter().map(|(_, size, _)| *size).sum();
+        if total <= max_bytes {
+            return;
         }
+        let target = max_bytes - max_bytes / 10;
+        index.sort_by_key(|(_, _, used)| *used);
+        let mut n = 0;
+        while n < index.len() && total > target {
+            total = total.saturating_sub(index[n].1);
+            n += 1;
+        }
+        index.drain(..n).collect()
+    };
+    // Outside the lock: each delete takes milliseconds on the Vita, and
+    // image loads need the index meanwhile.
+    for (key, _, _) in doomed {
+        let _ = fs::remove_file(path_in(dir, &key));
     }
-    *index = remaining;
 }
 
 /// Fetch (or reuse) the encoded JPEG/PNG bytes for an `i.scdn.co` URL.
@@ -165,4 +171,30 @@ pub async fn fetch_image(shared: &Shared, url: &str) -> Result<Vec<u8>, ApiError
     }
     shared.images.put(&key, &bytes);
     Ok(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prune_drops_oldest_down_to_90_percent() {
+        let dir = std::env::temp_dir().join(format!("vam-img-prune-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        // Ten 10-byte files, used at times 0..10, against a 95-byte cap.
+        let entries: Vec<_> = (0..10u64).map(|i| (format!("k{i}"), 10, i)).collect();
+        for (key, _, _) in &entries {
+            fs::write(path_in(&dir, key), [0u8; 10]).unwrap();
+        }
+        let index: Index = Mutex::new(entries);
+
+        prune(&dir, 95, &index);
+
+        // 100 > 95, so it shrinks to <= 86 (95 - 9): the two oldest go.
+        let left: Vec<_> = index.lock().unwrap().iter().map(|e| e.0.clone()).collect();
+        assert_eq!(left, (2..10).map(|i| format!("k{i}")).collect::<Vec<_>>());
+        assert!(!path_in(&dir, "k0").exists() && !path_in(&dir, "k1").exists());
+        assert!(path_in(&dir, "k2").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

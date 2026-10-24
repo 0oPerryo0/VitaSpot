@@ -10,8 +10,12 @@ typedef struct prefs {
     int dim_after;  /* seconds without input, 0 = never     */
     int off_after;  /* seconds without input, 0 = never     */
     int bitrate;    /* streaming quality: 96, 160 or 320    */
+    int cache_mb;   /* audio cache cap, one of CACHE_CHOICES */
     bool lyrics;    /* Now Playing shows lyrics, not the art */
 } prefs;
+
+#define CACHE_CHOICE_COUNT 4
+extern const int CACHE_CHOICES[CACHE_CHOICE_COUNT];
 
 /* Defaults, then whatever settings.txt has. Call before vam_init. */
 void prefs_load(void);

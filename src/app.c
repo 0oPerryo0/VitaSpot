@@ -568,6 +568,7 @@ bool app_init(SDL_Window *w, SDL_Renderer *r)
     cfg.device_name = platform_is_vita() ? "PS Vita" : "VitaSpot Desktop";
     cfg.data_dir = platform_data_dir();
     cfg.bitrate = prefs_get()->bitrate;
+    cfg.audio_cache_mb = (uint32_t)prefs_get()->cache_mb;
     /* The Vita ignores initial_volume and starts at the system volume.
        Normalisation turns loud masters down by their ReplayGain; without it
        full-scale tracks clip the Vita's speaker above ~80% volume. */

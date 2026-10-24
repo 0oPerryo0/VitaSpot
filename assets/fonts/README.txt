@@ -8,6 +8,18 @@ To use other fonts, replace these files before building the VPK:
 
 A single pan-CJK font (Noto Sans CJK) as fallback.ttf covers all three scripts.
 
+The bundled fallback.otf is a subset of Noto Sans CJK TC Regular 2.004
+(NotoSansCJKtc-Regular.otf, 16.4 MB) cut to 6.5 MB, because the app reads the
+whole file into memory before it draws any CJK text (about 2 s on the Vita for
+the full font). It keeps every BMP character except CJK Extension A
+(U+3400-4DBF) and drops characters above U+FFFF, which text.c cannot draw
+anyway, plus the OpenType layout features (regional and vertical forms) and
+hinting, which the app doesn't use. Rebuild it with fonttools
+(pip install fonttools):
+
+  pyftsubset NotoSansCJKtc-Regular.otf --unicodes="U+0000-33FF,U+4DC0-FFFF" \
+    --layout-features="" --no-hinting --output-file=fallback.otf
+
 Use fonts whose licence allows redistribution (SIL OFL fonts from Google Fonts are fine).
 Do not use Spotify's proprietary typeface.
 

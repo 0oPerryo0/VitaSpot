@@ -1,4 +1,4 @@
-/* Settings tab: the signed-in account (with log out), screen power, audio quality, and about. */
+/* Settings tab: the signed-in account (with log out), screen power, audio quality and cache, and about. */
 
 #include <stdio.h>
 
@@ -141,11 +141,20 @@ static const char *quality_label(int kbps)
     return kbps == 320 ? "High (320 kbps)" : kbps == 160 ? "Normal (160 kbps)" : "Low (96 kbps)";
 }
 
+static void fmt_cache(int mb, char *buf, size_t n)
+{
+    if (mb >= 1024)
+        snprintf(buf, n, "%d GB", mb / 1024);
+    else
+        snprintf(buf, n, "%d MB", mb);
+}
+
 static float audio_card(float x, float y, float w)
 {
     prefs *p = prefs_get();
-    rectf card = rect(x, y, w, SCREEN_ROW_H);
+    rectf card = rect(x, y, w, SCREEN_ROW_H * 2);
     gfx_rrect(card, 8, rgb(C_SURFACE));
+    gfx_rect(rect(card.x + 16, card.y + SCREEN_ROW_H, card.w - 32, 1), rgb(C_DIVIDER));
     float cy = card.y + SCREEN_ROW_H / 2.0f, right = card.x + card.w - 16;
     text_draw_vc("Audio quality", card.x + 16, cy, FS_M, FW_REGULAR, rgb(C_TEXT), 260);
     const char *val = quality_label(p->bitrate);
@@ -162,9 +171,26 @@ static float audio_card(float x, float y, float w)
             app_toast("Couldn't change the audio quality.");
         }
     }
-    text_draw("Applies from the next song. Lower quality uses less data and starts songs faster.", x,
-              card.y + card.h + 10, FS_S, FW_REGULAR, rgb(C_MUTED), w);
-    return card.h + 10 + text_line_height(FS_S);
+
+    /* The backend opens the cache at start, so a new size waits for a restart. */
+    cy += SCREEN_ROW_H;
+    text_draw_vc("Audio cache", card.x + 16, cy, FS_M, FW_REGULAR, rgb(C_TEXT), 260);
+    char size[16];
+    fmt_cache(p->cache_mb, size, sizeof(size));
+    if (pill_button(ui_id("settings.cache"), size, right - pill_w(size), cy - 20, false, NULL)) {
+        int i = 0;
+        while (i < CACHE_CHOICE_COUNT && CACHE_CHOICES[i] != p->cache_mb)
+            i++;
+        p->cache_mb = CACHE_CHOICES[(i + 1) % CACHE_CHOICE_COUNT];
+        prefs_changed();
+    }
+
+    float ny = card.y + card.h + 10, lh = text_line_height(FS_S);
+    text_draw("Quality applies from the next song. Lower quality uses less data and starts faster.", x, ny, FS_S,
+              FW_REGULAR, rgb(C_MUTED), w);
+    text_draw("Played songs are kept on the memory card. A new cache size applies after a restart.", x, ny + lh,
+              FS_S, FW_REGULAR, rgb(C_MUTED), w);
+    return card.h + 10 + 2 * lh;
 }
 
 static float about_card(float x, float y, float w)

@@ -34,7 +34,7 @@
 extern "C" {
 #endif
 
-#define VAM_API_VERSION 2
+#define VAM_API_VERSION 3
 
 #define VAM_URI_MAX  96
 #define VAM_TEXT_MAX 192
@@ -240,6 +240,8 @@ typedef struct vam_config {
     uint16_t initial_volume;       /* 0..65535                              */
     uint8_t normalize_volume;      /* loudness normalisation on/off         */
     uint8_t reserved;
+    uint32_t audio_cache_mb;       /* audio cache cap in MB; 0 = backend
+                                      default. Fixed until the next start.  */
 } vam_config;
 
 /* ------------------------------------------------------------------------ */

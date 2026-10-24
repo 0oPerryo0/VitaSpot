@@ -36,6 +36,10 @@ unsafe fn init_backend(
         96 | 160 | 320 => config.bitrate,
         _ => 160,
     };
+    let audio_cache_mb = match config.audio_cache_mb {
+        0 => 256,
+        mb => mb,
+    };
 
     match platform::init_network(&data_dir) {
         platform::NetStatus::Unavailable => {
@@ -53,6 +57,7 @@ unsafe fn init_backend(
         bitrate,
         initial_volume: config.initial_volume,
         normalize_volume: config.normalize_volume != 0,
+        audio_cache_bytes: audio_cache_mb as u64 * 1024 * 1024,
     };
     Ok(Backend::new(cfg))
 }

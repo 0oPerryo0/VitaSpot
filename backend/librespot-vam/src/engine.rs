@@ -92,7 +92,6 @@ enum Tick {
     Volume,
 }
 
-const AUDIO_CACHE_BYTES: u64 = 200 * 1024 * 1024;
 const PLAYER_TICK: Duration = Duration::from_millis(100);
 const VOLUME_TICK: Duration = Duration::from_millis(50);
 const SLOW_TICK: Duration = Duration::from_secs(1);
@@ -182,10 +181,11 @@ impl Engine {
             Some(config.data_dir.clone()),
             Some(config.data_dir.clone()),
             Some(config.cache_audio_dir()),
-            Some(AUDIO_CACHE_BYTES),
+            Some(config.audio_cache_bytes),
         )
         .map_err(|e| log::warn!("could not open librespot cache: {e}"))
         .ok();
+        log::info!("audio cache cap {} MB", config.audio_cache_bytes / (1024 * 1024));
 
         let wifi = platform::wifi_connected();
         if !wifi {

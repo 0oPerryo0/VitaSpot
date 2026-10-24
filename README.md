@@ -202,10 +202,10 @@ per-user folder, or the folder named by `VAM_DATA_DIR`.
 | File | Purpose |
 |---|---|
 | `credentials.json` | Saved login |
-| `cache/audio/`, `cache/img/` | Audio (200 MB cap) and image (30 MB cap) caches |
+| `cache/audio/`, `cache/img/` | Audio (256 MB to 1 GB, set in Settings; 512 MB by default) and image (30 MB cap) caches |
 | `fonts/` | Optional: fonts here override the bundled ones |
 | `recent_searches.txt` | Recent searches |
-| `settings.txt` | Settings: screen-off combo and timers, audio quality, lyrics on or off |
+| `settings.txt` | Settings: screen-off combo and timers, audio quality, audio cache size, lyrics on or off |
 | `vam.log` | Backend log, rewritten on each start (Vita) |
 
 `vam.log` is the first place to look. It records sign-in, track loads,

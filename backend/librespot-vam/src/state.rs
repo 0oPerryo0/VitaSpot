@@ -20,6 +20,7 @@ pub struct Config {
     pub bitrate: i32,
     pub initial_volume: u16,
     pub normalize_volume: bool,
+    pub audio_cache_bytes: u64,
 }
 
 impl Config {

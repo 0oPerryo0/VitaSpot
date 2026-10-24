@@ -197,10 +197,13 @@ impl FsSizeLimiter {
     }
 
     fn touch(&self, file: &Path) -> bool {
-        self.limiter
+        let listed = self
+            .limiter
             .lock()
             .expect(CACHE_LIMITER_POISON_MSG)
-            .update(file, SystemTime::now())
+            .update(file, SystemTime::now());
+        // VitaSpot: a file the startup scan hasn't reached yet.
+        listed || fs::metadata(file).map(|m| self.add(file, m.len())).is_ok()
     }
 
     fn remove(&self, file: &Path) -> bool {
@@ -245,15 +248,44 @@ impl FsSizeLimiter {
         Self::prune_internal(|| self.limiter.lock().expect(CACHE_LIMITER_POISON_MSG).pop())
     }
 
-    fn new(path: &Path, limit: u64) -> Result<Self, Error> {
-        let mut limiter = SizeLimiter::new(limit);
-
-        Self::init_dir(&mut limiter, path);
-        Self::prune_internal(|| limiter.pop())?;
-
-        Ok(Self {
-            limiter: Mutex::new(limiter),
-        })
+    /// VitaSpot: lists the existing files on a background thread. On the Vita
+    /// each file costs ~25 ms to stat, and upstream did this before the cache
+    /// could be used, which held up Zeroconf and the login screen for seconds.
+    /// Until the scan finishes, files saved or opened are tracked as usual;
+    /// pruning only starts a little late.
+    fn new(path: &Path, limit: u64) -> Arc<Self> {
+        let limiter = Arc::new(Self {
+            limiter: Mutex::new(SizeLimiter::new(limit)),
+        });
+        let scan = {
+            let (limiter, path) = (limiter.clone(), path.to_owned());
+            move || {
+                let mut found = SizeLimiter::new(limit);
+                Self::init_dir(&mut found, &path);
+                {
+                    let mut live = limiter.limiter.lock().expect(CACHE_LIMITER_POISON_MSG);
+                    // Files touched meanwhile are already listed, fresher.
+                    for (file, Reverse(accessed)) in found.queue {
+                        if let Some(&size) = found.sizes.get(&file) {
+                            if !live.sizes.contains_key(&file) {
+                                live.add(&file, size, accessed);
+                            }
+                        }
+                    }
+                }
+                if let Err(e) = limiter.prune() {
+                    warn!("Could not prune the audio cache: {e}");
+                }
+            }
+        };
+        let spawned = std::thread::Builder::new()
+            .name("audio-cache-scan".into())
+            .stack_size(128 * 1024)
+            .spawn(scan.clone());
+        if spawned.is_err() {
+            scan();
+        }
+        limiter
     }
 }
 
@@ -293,8 +325,7 @@ impl Cache {
             fs::create_dir_all(location)?;
 
             if let Some(limit) = size_limit {
-                let limiter = FsSizeLimiter::new(location.as_ref(), limit)?;
-                size_limiter = Some(Arc::new(limiter));
+                size_limiter = Some(FsSizeLimiter::new(location.as_ref(), limit));
             }
         }
 

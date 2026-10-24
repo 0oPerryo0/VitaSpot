@@ -162,6 +162,9 @@ struct Engine {
     last_wifi: bool,
     last_tick_ms: u64,
     shutting_down: bool,
+    /// Tracks that failed to load since the last one played. Spirc (vendored)
+    /// stops playback once a few in a row fail; this picks the message.
+    unavailable_in_a_row: u32,
 }
 
 impl Engine {
@@ -218,6 +221,7 @@ impl Engine {
             last_wifi: wifi,
             last_tick_ms: now_ms_inner(),
             shutting_down: false,
+            unavailable_in_a_row: 0,
         };
 
         // Auto-login with stored credentials, otherwise advertise over
@@ -824,6 +828,7 @@ impl Engine {
             }
             PlayerEvent::Playing { position_ms, .. }
             | PlayerEvent::PositionCorrection { position_ms, .. } => {
+                self.unavailable_in_a_row = 0;
                 self.backend.set_player(move |state| {
                     state.playback = VAM_PLAYBACK_PLAYING;
                     state.position_ms = position_ms;
@@ -848,6 +853,12 @@ impl Engine {
                 });
             }
             PlayerEvent::Stopped { .. } => {
+                if self.unavailable_in_a_row > 0 {
+                    self.unavailable_in_a_row = 0;
+                    self.backend.emit_error(
+                        "Spotify wouldn't play these songs, so playback stopped. vam.log has the details.",
+                    );
+                }
                 self.backend.set_player(|state| {
                     state.playback = VAM_PLAYBACK_STOPPED;
                     state.seq = state.seq.wrapping_add(1);
@@ -869,8 +880,11 @@ impl Engine {
             }
             PlayerEvent::Unavailable { track_id, .. } => {
                 log::warn!("track unavailable: {}", track_id.to_uri().unwrap_or_default());
-                self.backend
-                    .emit_error("That track isn't available. Skipping to the next one.");
+                self.unavailable_in_a_row += 1;
+                if self.unavailable_in_a_row == 1 {
+                    self.backend
+                        .emit_error("That track isn't available. Skipping to the next one.");
+                }
             }
             PlayerEvent::EndOfTrack { .. } => {}
             PlayerEvent::TimeToPreloadNextTrack { .. } => {}
@@ -1265,6 +1279,7 @@ impl Engine {
 
     async fn login(&mut self, credentials: Credentials) -> Result<(), String> {
         self.teardown().await;
+        self.unavailable_in_a_row = 0;
 
         self.backend.set_auth(|auth| {
             auth.status = VAM_AUTH_CONNECTING;

@@ -112,6 +112,11 @@ Changes:
     Vita's volume buttons, dragging the slider) kept `update_volume` set,
     and that blocks context resolving: tapping another song did nothing until
     the volume stopped changing.
+  * playback stops after `UNAVAILABLE_STOP_AFTER` (3) tracks in a row fail to
+    load (`unavailable_in_a_row`, reset when a track plays; failed preloads
+    don't count). Upstream skipped to the next track on every failure, and
+    when Spotify refuses every track (audio key errors, librespot#1649)
+    autoplay kept refilling the queue, so it skipped forever.
 * `src/state/context.rs` - `valid_resolve_uri` also rejects
   `spotify:web-api`, the placeholder uri of a context built from plain tracks
   (`LoadRequest::from_tracks`, used for a song played from search). Upstream

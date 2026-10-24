@@ -55,7 +55,8 @@ static entry g_pending;     /* stand-in returned once the budget is spent */
 
 /* Font files read into memory and shared by every size and weight.
  * Opening by path made FreeType stream glyphs from app0: with blocking
- * reads. Reading the 16 MB CJK font takes ~2 s on the Vita, so a worker
+ * reads. Reading the full 16 MB CJK font took ~2 s on the Vita (the bundled
+ * subset is 6.5 MB, see assets/fonts/README.txt), so a worker
  * thread loads the files; until it finishes, the primary fonts stream from
  * disk (the fallbacks wait), and once it does they are reopened from memory
  * between frames. */

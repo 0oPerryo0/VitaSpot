@@ -56,13 +56,15 @@ static entry g_pending;     /* stand-in returned once the budget is spent */
 /* Font files read into memory and shared by every size and weight.
  * Opening by path made FreeType stream glyphs from app0: with blocking
  * reads. Reading the full 16 MB CJK font took ~2 s on the Vita (the bundled
- * subset is 6.5 MB, see assets/fonts/README.txt), so a worker
- * thread loads the files; until it finishes, the primary fonts stream from
- * disk (the fallbacks wait), and once it does they are reopened from memory
- * between frames. */
+ * subset is 6.5 MB, see assets/fonts/README.txt), so a worker thread loads
+ * the fallbacks; until it finishes they wait, and once it does every font is
+ * reopened from memory between frames. The primary fonts (~60 KB each) are
+ * read up front instead: streamed from the card while the backend's cache
+ * scans ran, the first frame took 20 s and the screen stayed black. */
 #define FONT_FILES 4
 static struct { char path[512]; void *data; size_t size; } g_files[FONT_FILES];
 static int g_nfiles;
+static int g_nsync;                 /* g_files[0..g_nsync) loaded before the worker */
 static SDL_Thread *g_preload;
 static SDL_atomic_t g_preloaded;    /* worker finished writing g_files */
 static bool g_reopened;
@@ -163,16 +165,17 @@ static int preload_worker(void *arg)
 {
     (void)arg;
     platform_lower_thread_priority();
-    for (int i = 0; i < g_nfiles; i++)
+    for (int i = g_nsync; i < g_nfiles; i++)
         g_files[i].data = SDL_LoadFile(g_files[i].path, &g_files[i].size);
     SDL_AtomicSet(&g_preloaded, 1);
     return 0;
 }
 
-/* Queue each distinct face file for loading into memory. */
+/* Load the primary face files now and queue the fallbacks for the worker. */
 static void start_preload(void)
 {
     g_nfiles = 0;
+    g_nsync = 0;
     g_reopened = false;
     SDL_AtomicSet(&g_preloaded, 0);
     for (int i = 0; i < FACE_COUNT && g_nfiles < FONT_FILES; i++) {
@@ -183,7 +186,11 @@ static void start_preload(void)
             seen = seen || strcmp(g_files[j].path, g_faces[i].path) == 0;
         if (!seen)
             snprintf(g_files[g_nfiles++].path, sizeof(g_files[0].path), "%s", g_faces[i].path);
+        if (i <= FACE_BOLD)
+            g_nsync = g_nfiles;
     }
+    for (int i = 0; i < g_nsync; i++)
+        g_files[i].data = SDL_LoadFile(g_files[i].path, &g_files[i].size);
     g_preload = SDL_CreateThread(preload_worker, "font-preload", NULL);
     if (!g_preload)
         SDL_AtomicSet(&g_preloaded, 1); /* no thread: keep streaming from disk */
@@ -307,14 +314,13 @@ static int size_index(int px)
     return best;
 }
 
-/* The in-memory copy of path once preloaded, otherwise the file itself. */
+/* The in-memory copy of path once loaded, otherwise the file itself. */
 static SDL_RWops *font_stream(const char *path)
 {
-    if (SDL_AtomicGet(&g_preloaded)) {
-        for (int i = 0; i < g_nfiles; i++)
-            if (g_files[i].data && strcmp(g_files[i].path, path) == 0)
-                return SDL_RWFromConstMem(g_files[i].data, (int)g_files[i].size);
-    }
+    bool preloaded = SDL_AtomicGet(&g_preloaded);
+    for (int i = 0; i < g_nfiles; i++)
+        if ((i < g_nsync || preloaded) && g_files[i].data && strcmp(g_files[i].path, path) == 0)
+            return SDL_RWFromConstMem(g_files[i].data, (int)g_files[i].size);
     return SDL_RWFromFile(path, "rb");
 }
 

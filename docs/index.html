@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VitaSpot — Spotify on PS Vita | Unofficial Homebrew Client</title>
+  <meta name="description" content="Play Spotify on your PS Vita with VitaSpot, an unofficial homebrew client featuring Spotify Connect, synced lyrics, gapless playback, search, and touch controls.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#101210">
+  <link rel="canonical" href="https://0operryo0.github.io/VitaSpot/">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="assets/site.css">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="VitaSpot">
+  <meta property="og:title" content="VitaSpot — Your music. Back on your PS Vita.">
+  <meta property="og:description" content="An unofficial Spotify client for PS Vita with Spotify Connect, synced lyrics, and native playback.">
+  <meta property="og:url" content="https://0operryo0.github.io/VitaSpot/">
+  <meta property="og:image" content="https://0operryo0.github.io/VitaSpot/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="VitaSpot music player running on PS Vita">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="VitaSpot — Your music. Back on your PS Vita.">
+  <meta name="twitter:description" content="Spotify Connect, synced lyrics, and native playback on PS Vita.">
+  <meta name="twitter:image" content="https://0operryo0.github.io/VitaSpot/assets/og-image.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "VitaSpot",
+    "url": "https://0operryo0.github.io/VitaSpot/",
+    "downloadUrl": "https://github.com/0oPerryo0/VitaSpot/releases/latest",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "PlayStation Vita",
+    "description": "An unofficial homebrew Spotify client for PS Vita with native playback, Spotify Connect, synced lyrics, search, and library browsing.",
+    "softwareVersion": "0.0.4",
+    "isAccessibleForFree": true,
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "0oPerryo0", "url": "https://github.com/0oPerryo0" }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Do I need Spotify Premium?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. VitaSpot requires a Spotify Premium account. Free accounts are not supported for playback." } },
+      { "@type": "Question", "name": "Is VitaSpot an official Spotify app?", "acceptedAnswer": { "@type": "Answer", "text": "No. VitaSpot is unofficial and is not affiliated with Spotify. It uses librespot and private protocol endpoints, which break Spotify's Terms of Use. It is intended for personal use only." } },
+      { "@type": "Question", "name": "How do I sign in?", "acceptedAnswer": { "@type": "Answer", "text": "Connect your Vita and phone or computer to the same WiFi network. Open Spotify's device picker and choose PS Vita. VitaSpot signs in and remembers the account." } },
+      { "@type": "Question", "name": "What can I play and control?", "acceptedAnswer": { "@type": "Answer", "text": "You can browse your library, search songs, artists, albums and playlists, manage the queue, seek, shuffle, repeat, and listen at up to 320 kbps with gapless playback." } },
+      { "@type": "Question", "name": "Does VitaSpot support lyrics?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, when Spotify provides lyrics for the track. Synced lyrics highlight the current line, and tapping a line jumps to that moment." } },
+      { "@type": "Question", "name": "Can I use buttons instead of touch?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The interface supports the directional pad, analog stick, action buttons, shoulder buttons, Start, and Select. The complete control map is in the project README." } },
+      { "@type": "Question", "name": "Where does VitaSpot store my data?", "acceptedAnswer": { "@type": "Answer", "text": "On the Vita, credentials, settings, logs, and media caches live in ux0:data/VitaSpot. This website has no accounts, analytics, cookies, or tracking." } },
+      { "@type": "Question", "name": "Can I build it from source?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The frontend uses C11 and SDL2, while the backend uses Rust and librespot. The README includes VitaSDK, desktop, mock backend, and real backend build instructions." } }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="nav-shell" aria-label="Main navigation">
+      <a class="brand" href="#top" aria-label="VitaSpot home">
+        <img src="assets/icon.png" alt="" width="32" height="32">
+        <span>VitaSpot</span>
+      </a>
+      <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Open navigation">
+        <span></span><span></span>
+      </button>
+      <div class="nav-menu" id="nav-menu">
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#install">Install</a>
+          <a href="#architecture">Under the hood</a>
+          <a href="#faq">FAQ</a>
+        </div>
+        <a class="button button-small button-outline" href="https://github.com/0oPerryo0/VitaSpot" target="_blank" rel="noopener">View source <span aria-hidden="true">↗</span></a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero section-shell" id="top" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="status-dot"></span> Homebrew for PlayStation Vita</div>
+        <h1 id="hero-title">Your music.<br>Back on your <span>PS Vita.</span></h1>
+        <p class="hero-lede">An unofficial Spotify client built for the console in your drawer. Stream natively, hand off with Spotify Connect, and rediscover your library.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/0oPerryo0/VitaSpot/releases/latest" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>
+            Download VitaSpot
+          </a>
+          <span class="release-note">Free to download <span aria-hidden="true">·</span> v0.0.4</span>
+        </div>
+        <p class="proof-line"><span>320 kbps audio</span><span>Gapless playback</span><span>Synced lyrics</span></p>
+      </div>
+      <div class="hero-visual" aria-label="VitaSpot Home screen">
+        <div class="orbit orbit-one" aria-hidden="true"></div>
+        <div class="orbit orbit-two" aria-hidden="true"></div>
+        <div class="device">
+          <div class="device-controls" aria-hidden="true"><span></span><span></span></div>
+          <div class="device-screen"><img src="assets/screenshots/home.png" alt="VitaSpot Home showing recently played music and playback controls on PS Vita" width="960" height="544" fetchpriority="high"></div>
+          <div class="device-brand" aria-hidden="true">VITASPOT</div>
+        </div>
+        <div class="now-playing-card">
+          <span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13M9 8l10-2M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm10-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z"/></svg></span>
+          <span><strong>Made for the small screen</strong><small>Touch and button controls</small></span>
+        </div>
+      </div>
+      <div class="hero-footnote"><span class="notice-mark">i</span> Spotify Premium required. Not affiliated with Spotify.</div>
+    </section>
+
+    <section class="features section-shell section-space" id="features" aria-labelledby="features-title">
+      <div class="section-heading" data-reveal>
+        <div class="eyebrow">A familiar place to listen</div>
+        <h2 id="features-title">Everything you need.<br>Nothing in the way.</h2>
+        <p>Your library, playback controls, and lyrics are thoughtfully arranged for a five inch console screen.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card feature-wide" data-reveal>
+          <div class="feature-copy">
+            <span class="feature-number">01</span>
+            <h3>Pick up where you left off</h3>
+            <p>Browse recently played music, your playlists, saved albums, and favorite artists. Search the catalog without leaving the Vita.</p>
+            <ul class="check-list"><li>Spotify Connect handoff</li><li>Library, search, and queue</li><li>Like and save your favorites</li></ul>
+          </div>
+          <div class="screen-window screen-home"><img src="assets/screenshots/playlist.png" alt="Playlist view in VitaSpot with track list and playback bar" width="960" height="544" loading="lazy"></div>
+        </article>
+        <article class="feature-card" data-reveal>
+          <div class="feature-copy">
+            <span class="feature-number">02</span>
+            <h3>Follow every word</h3>
+            <p>Synced lyrics highlight each line with the music. Tap any line to jump straight to that moment.</p>
+          </div>
+          <div class="screen-window"><img src="assets/screenshots/player_lyrics.png" alt="VitaSpot Now Playing with synchronized Japanese lyrics" width="960" height="544" loading="lazy"></div>
+        </article>
+        <article class="feature-card feature-dark" data-reveal>
+          <div class="feature-copy">
+            <span class="feature-number">03</span>
+            <h3>Keep the music going</h3>
+            <p>Gapless playback, volume normalization, and configurable audio caching keep listening smooth. Turn off the screen while the music plays.</p>
+          </div>
+          <div class="audio-readout" aria-label="Audio features">
+            <div><strong>320</strong><span>kbps Ogg Vorbis</span></div>
+            <div class="waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <span class="audio-caption">High quality audio. On your terms.</span>
+          </div>
+        </article>
+        <article class="feature-card feature-wide feature-reverse" data-reveal>
+          <div class="feature-copy">
+            <span class="feature-number">04</span>
+            <h3>Feels right in your hands</h3>
+            <p>Use touch or familiar Vita buttons. Generous touch targets, focused navigation, and CJK font support make the interface feel considered.</p>
+            <div class="key-row" aria-label="Supported controls"><kbd>△</kbd><span>Play</span><kbd>✕</kbd><span>Select</span><kbd>L</kbd><kbd>R</kbd><span>Skip</span></div>
+          </div>
+          <div class="screen-window"><img src="assets/screenshots/artist.png" alt="Artist page in VitaSpot showing popular songs and albums" width="960" height="544" loading="lazy"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="tagline-section section-space" aria-label="VitaSpot purpose">
+      <div class="section-shell">
+        <span class="eyebrow">Old hardware. New rituals.</span>
+        <p class="tagline" data-tagline>A second life for the console you never stopped loving.</p>
+      </div>
+    </section>
+
+    <section class="install section-shell section-space" id="install" aria-labelledby="install-title">
+      <div class="section-heading split-heading" data-reveal>
+        <div><div class="eyebrow">From download to first track</div><h2 id="install-title">Listening in three steps</h2></div>
+        <p>No installer wizard. No account on this site. Just your Vita, your Spotify account, and a shared WiFi network.</p>
+      </div>
+      <ol class="steps">
+        <li data-reveal><span class="step-number">01</span><div class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg></div><h3>Install the VPK</h3><p>Download the latest release, transfer the VPK to your Vita, and install it with VitaShell.</p><a href="https://github.com/0oPerryo0/VitaSpot/releases/latest" target="_blank" rel="noopener">Get the latest release <span aria-hidden="true">↗</span></a></li>
+        <li data-reveal><span class="step-number">02</span><div class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9a12 12 0 0 1 16 0M7 13a8 8 0 0 1 10 0m-7 4a3 3 0 0 1 4 0M12 21h.01"/></svg></div><h3>Join the same WiFi</h3><p>Open VitaSpot on your Vita. Keep your phone or computer on the same network so they can find each other.</p></li>
+        <li data-reveal><span class="step-number">03</span><div class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8v18H8zM11 18h2M16 8h4v13h-4M4 11h4v10H4"/></svg></div><h3>Choose PS Vita</h3><p>In Spotify, open the device picker and select PS Vita. Your account signs in and playback moves over.</p></li>
+      </ol>
+      <details class="install-help" data-reveal>
+        <summary>Having trouble finding your Vita?<span aria-hidden="true">+</span></summary>
+        <div><p>Some routers block device discovery. You can sign in from a computer with the included login helper, then copy <code>credentials.json</code> to <code>ux0:data/VitaSpot/</code>.</p><a href="https://github.com/0oPerryo0/VitaSpot#if-the-vita-never-appears-in-the-device-list-sign-in-from-a-pc-instead" target="_blank" rel="noopener">Read the fallback sign in guide <span aria-hidden="true">↗</span></a></div>
+      </details>
+    </section>
+
+    <section class="architecture section-space" id="architecture" aria-labelledby="architecture-title">
+      <div class="section-shell architecture-grid">
+        <div class="architecture-copy" data-reveal>
+          <div class="eyebrow">Built close to the hardware</div>
+          <h2 id="architecture-title">Small footprint.<br>Serious engineering.</h2>
+          <p>A responsive interface stays separate from playback and network work. The result is a native app designed around the Vita, not a wrapped website.</p>
+          <a class="text-link" href="https://github.com/0oPerryo0/VitaSpot#how-it-is-built" target="_blank" rel="noopener">Explore the source and build guide <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="architecture-diagram" data-reveal>
+          <div class="code-label">THE ARCHITECTURE</div>
+          <div class="arch-layer"><span class="arch-tag">C11</span><div><strong>SDL2 frontend</strong><small>Touch, buttons, text, images, and motion</small></div><span class="arch-index">01</span></div>
+          <div class="arch-connector" aria-hidden="true"><span></span><small>Plain C event contract</small><span></span></div>
+          <div class="arch-layer"><span class="arch-tag">RUST</span><div><strong>librespot backend</strong><small>Audio, discovery, metadata, and lyrics</small></div><span class="arch-index">02</span></div>
+          <div class="arch-footer"><span class="status-dot"></span> Network work never blocks the interface</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="faq section-shell section-space" id="faq" aria-labelledby="faq-title">
+      <div class="section-heading split-heading" data-reveal>
+        <div><div class="eyebrow">Before you press play</div><h2 id="faq-title">Questions, answered</h2></div>
+        <p>The practical details about accounts, playback, controls, and what lives on your Vita.</p>
+      </div>
+      <div class="faq-list" data-reveal>
+        <details open><summary>Do I need Spotify Premium?<span aria-hidden="true">+</span></summary><p>Yes. VitaSpot requires a Spotify Premium account. Free accounts are not supported for playback.</p></details>
+        <details><summary>Is VitaSpot an official Spotify app?<span aria-hidden="true">+</span></summary><p>No. VitaSpot is unofficial and is not affiliated with Spotify. It uses librespot and private protocol endpoints, which break Spotify's Terms of Use. It is intended for personal use only.</p></details>
+        <details><summary>How do I sign in?<span aria-hidden="true">+</span></summary><p>Connect your Vita and phone or computer to the same WiFi network. Open Spotify's device picker and choose PS Vita. VitaSpot signs in and remembers the account.</p></details>
+        <details><summary>What can I play and control?<span aria-hidden="true">+</span></summary><p>You can browse your library, search songs, artists, albums and playlists, manage the queue, seek, shuffle, repeat, and listen at up to 320 kbps with gapless playback.</p></details>
+        <details><summary>Does VitaSpot support lyrics?<span aria-hidden="true">+</span></summary><p>Yes, when Spotify provides lyrics for the track. Synced lyrics highlight the current line, and tapping a line jumps to that moment.</p></details>
+        <details><summary>Can I use buttons instead of touch?<span aria-hidden="true">+</span></summary><p>Yes. The interface supports the directional pad, analog stick, action buttons, shoulder buttons, Start, and Select. The <a href="https://github.com/0oPerryo0/VitaSpot#controls" target="_blank" rel="noopener">complete control map</a> is in the project README.</p></details>
+        <details><summary>Where does VitaSpot store my data?<span aria-hidden="true">+</span></summary><p>On the Vita, credentials, settings, logs, and media caches live in <code>ux0:data/VitaSpot</code>. This website has no accounts, analytics, cookies, or tracking.</p></details>
+        <details><summary>Can I build it from source?<span aria-hidden="true">+</span></summary><p>Yes. The frontend uses C11 and SDL2, while the backend uses Rust and librespot. The README includes VitaSDK, desktop, mock backend, and real backend build instructions.</p></details>
+      </div>
+    </section>
+
+    <section class="final-cta section-shell section-space" data-reveal aria-labelledby="download-title">
+      <div class="cta-panel">
+        <div class="cta-icon"><img src="assets/icon.png" alt="" width="64" height="64"></div>
+        <div><div class="eyebrow">Your next listen is waiting</div><h2 id="download-title">Put your Vita back in rotation.</h2><p>Download the latest release and start listening in a few simple steps.</p></div>
+        <a class="button button-primary" href="https://github.com/0oPerryo0/VitaSpot/releases/latest" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>Download VitaSpot</a>
+      </div>
+      <p class="risk-note">Free to download. Spotify Premium required. Unofficial and intended for personal use only.</p>
+    </section>
+  </main>
+
+  <footer class="footer section-shell">
+    <div class="footer-main"><a class="brand" href="#top"><img src="assets/icon.png" alt="" width="32" height="32"><span>VitaSpot</span></a><p>Music, made at home on PlayStation Vita.</p></div>
+    <div class="footer-links"><a href="https://github.com/0oPerryo0/VitaSpot" target="_blank" rel="noopener">Source</a><a href="https://github.com/0oPerryo0/VitaSpot/releases" target="_blank" rel="noopener">Releases</a><a href="https://github.com/0oPerryo0/VitaSpot/issues" target="_blank" rel="noopener">Issues</a><a href="https://github.com/0oPerryo0/VitaSpot#credits-and-licences" target="_blank" rel="noopener">Credits and licences</a></div>
+    <div class="footer-bottom"><span>Built for a console worth keeping.</span><span>Not affiliated with Spotify or Sony.</span></div>
+  </footer>
+  <script src="assets/site.js" defer></script>
+</body>
+</html>

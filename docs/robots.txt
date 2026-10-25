@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://0operryo0.github.io/VitaSpot/sitemap.xml
